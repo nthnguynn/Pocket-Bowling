@@ -1,3 +1,5 @@
+import { mulberry32 } from '@pocket/party-kit';
+
 /** Đơn vị đường đua: làn rộng 100, trục y tăng theo hướng bi lăn tới đích. */
 export const LANE_WIDTH = 100;
 export const MARBLE_RADIUS = 4.5;
@@ -21,18 +23,6 @@ export interface Course {
   /** Sắp theo y tăng dần để tra cứu theo đoạn. */
   obstacles: Obstacle[];
   gemCount: number;
-}
-
-/** PRNG nhỏ, xác định theo seed: mọi làn đua cùng một đường để công bằng. */
-export function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
-  };
 }
 
 export function sweeperX(obstacle: Extract<Obstacle, { kind: 'sweeper' }>, time: number): number {
@@ -69,9 +59,9 @@ export function generateCourse(seed: number, length = DEFAULT_COURSE_LENGTH): Co
         if (W - center - gap / 2 > 3) obstacles.push({ kind: 'block', x: center + gap / 2, y, w: W - center - gap / 2, h: 14 });
         if (rand() < 0.5) gem(center, y + 7);
       }
-    } else if (roll < 0.46) {
+    } else if (roll < 0.54) {
       const h = 24 + difficulty * 14;
-      if (difficulty > 0.35 && rand() < 0.4) {
+      if (difficulty > 0.25 && rand() < 0.45) {
         // Hố chắn ngang cả làn: chỉ có cách nhảy.
         obstacles.push({ kind: 'hole', x: 0, y, w: W, h: 26, safeX: W / 2 });
       } else {
@@ -80,13 +70,13 @@ export function generateCourse(seed: number, length = DEFAULT_COURSE_LENGTH): Co
         if (center - gap / 2 > 3) obstacles.push({ kind: 'hole', x: 0, y, w: center - gap / 2, h, safeX: center });
         if (W - center - gap / 2 > 3) obstacles.push({ kind: 'hole', x: center + gap / 2, y, w: W - center - gap / 2, h, safeX: center });
       }
-    } else if (roll < 0.6) {
+    } else if (roll < 0.66) {
       const w = 28;
       obstacles.push({
         kind: 'sweeper', x: W / 2 - w / 2, y, w, h: 12,
         center: W / 2, range: (W - w) / 2 - 3, speed: between(1.1, 1.6 + difficulty * 1.2), phase: between(0, Math.PI * 2),
       });
-    } else if (roll < 0.76) {
+    } else if (roll < 0.79) {
       // Chuỗi ngọc uốn lượn.
       const count = 4 + Math.floor(rand() * 3);
       const base = between(22, W - 22);
@@ -94,7 +84,7 @@ export function generateCourse(seed: number, length = DEFAULT_COURSE_LENGTH): Co
       for (let index = 0; index < count; index += 1) {
         gem(Math.max(10, Math.min(W - 10, base + Math.sin(index * 0.9) * swing)), y + index * 13);
       }
-    } else if (roll < 0.88) {
+    } else if (roll < 0.89) {
       const w = 26;
       const x = between(6, W - w - 6);
       obstacles.push({ kind: 'boost', x, y, w, h: 30 });

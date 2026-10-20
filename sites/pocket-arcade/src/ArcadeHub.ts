@@ -1,5 +1,5 @@
-import { GAME_CATALOG, type GameCatalogItem } from '../hub/gameCatalog';
-import { bindThemeToggle } from './theme';
+import { bindThemeToggle, type SiteMeta } from '@pocket/party-kit';
+import { GAMES, playerCountLabel, siteUrl } from './catalog';
 
 export class ArcadeHub {
   constructor(private readonly root: HTMLElement) {
@@ -11,32 +11,37 @@ export class ArcadeHub {
 
   private bind(): void {
     bindThemeToggle(this.root);
-    this.root.querySelectorAll<HTMLButtonElement>('[data-game-route]').forEach((button) => {
-      const warmGame = (): void => {
-        if (button.dataset.gameRoute === 'marble') void import('../marble/MarbleApp');
-        if (button.dataset.gameRoute !== 'bowling') return;
-        void import('../ui/DesktopApp');
-        void import('@dimforge/rapier3d-compat');
-      };
-      button.addEventListener('pointerenter', warmGame, { once: true });
-      button.addEventListener('focus', warmGame, { once: true });
-      button.addEventListener('click', () => {
-        button.classList.add('is-launching');
-        button.querySelector('span')!.textContent = 'ĐANG MỞ SÂN…';
-        const url = new URL(location.href);
-        url.search = '';
-        url.searchParams.set('game', button.dataset.gameRoute!);
-        location.assign(url);
+    this.root.querySelectorAll<HTMLAnchorElement>('[data-game-link]').forEach((link) => {
+      link.addEventListener('click', () => {
+        link.classList.add('is-launching');
+        link.querySelector('span')!.textContent = 'ĐANG MỞ SÂN…';
       });
     });
   }
 
-  private gameArt(game: GameCatalogItem): string {
+  private gameArt(game: SiteMeta): string {
+    if (game.id === 'roll') {
+      return `<div class="hub-game-art hub-game-art--roll" aria-hidden="true">
+        <div class="hub-roll-board"></div>
+        <span class="hub-roll-saw"></span>
+        <span class="hub-roll"><b></b></span>
+        <span class="hub-roll-wc">WC</span>
+        <span class="hub-live-badge">MỚI</span>
+      </div>`;
+    }
+    if (game.id === 'sumo') {
+      return `<div class="hub-game-art hub-game-art--sumo" aria-hidden="true">
+        <div class="hub-sumo-ring"></div>
+        <span class="hub-sumo hub-sumo--a"><b></b></span><span class="hub-sumo hub-sumo--b"><b></b></span>
+        <span class="hub-sumo-bang">BỐP!</span>
+        <span class="hub-live-badge">SẴN SÀNG</span>
+      </div>`;
+    }
     if (game.id === 'marble') {
       return `<div class="hub-game-art hub-game-art--marble" aria-hidden="true">
         <div class="hub-marble-track"><i></i><i></i><i></i></div>
         <span class="hub-marble hub-marble--a"></span><span class="hub-marble hub-marble--b"></span><span class="hub-marble hub-marble--c"></span>
-        <span class="hub-live-badge">MỚI</span>
+        <span class="hub-live-badge">SẴN SÀNG</span>
       </div>`;
     }
     return `<div class="hub-game-art" aria-hidden="true">
@@ -49,21 +54,21 @@ export class ArcadeHub {
       </div>`;
   }
 
-  private gameCard(game: GameCatalogItem): string {
+  private gameCard(game: SiteMeta): string {
     return `<article class="hub-game-card hub-game-card--${game.id}">
       ${this.gameArt(game)}
       <div class="hub-game-copy">
         <span class="hub-card-eyebrow">${game.eyebrow}</span>
         <h2>${game.title}</h2>
         <p>${game.description}</p>
-        <div class="hub-tags">${game.tags.map((tag) => `<span>${tag}</span>`).join('')}</div>
-        <button class="hub-play-button" data-game-route="${game.route}"><span>CHƠI NGAY</span><b>→</b></button>
+        <div class="hub-tags">${[playerCountLabel(game.players), ...game.tags].map((tag) => `<span>${tag}</span>`).join('')}</div>
+        <a class="hub-play-button" data-game-link href="${siteUrl(game)}"><span>CHƠI NGAY</span><b>→</b></a>
       </div>
     </article>`;
   }
 
   private template(): string {
-    const availableGames = GAME_CATALOG.filter((game) => game.available);
+    const availableGames = GAMES;
     return `<main class="hub-shell">
       <div class="hub-orb hub-orb-one"></div><div class="hub-orb hub-orb-two"></div>
       <header class="hub-header">

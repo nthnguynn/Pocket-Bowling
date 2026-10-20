@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GameSession } from '../src/game/GameSession';
-import { PLAYER_COLORS, sanitizePlayerName } from '../src/game/players';
 import { PartyRoom } from '../src/party/PartyRoom';
+import { MAX_PLAYERS, PLAYER_COLORS, sanitizePlayerName } from '../src/players';
 
 const CLIENT_A = 'client-aaaaaaaa';
 const CLIENT_B = 'client-bbbbbbbb';
@@ -86,40 +85,26 @@ describe('sảnh chờ party', () => {
   });
 });
 
-describe('tên người chơi và ván nhiều người', () => {
+describe('tên và màu người chơi', () => {
   it('làm sạch tên do điện thoại gửi lên', () => {
     expect(sanitizePlayerName('  <b>Lan</b>\n  ')).toBe('bLan/b');
     expect(sanitizePlayerName('Nguyễn   Thị  Minh Khai rất dài')).toBe('Nguyễn Thị Minh');
     expect(sanitizePlayerName(42)).toBe('');
   });
 
-  it('xoay vòng lượt qua 3 người và giữ màu từng người', () => {
-    const session = new GameSession([
-      { name: 'A', color: PLAYER_COLORS[0] },
-      { name: 'B', color: PLAYER_COLORS[1] },
-      { name: 'C', color: PLAYER_COLORS[2] },
-    ]);
-    const order: number[] = [];
-    for (let turn = 0; turn < 4; turn += 1) {
-      order.push(session.activePlayer);
-      session.beginThrow(`t-${turn}`);
-      session.markSettling();
-      session.recordRoll(10);
-      session.finishTransition();
-    }
-    expect(order).toEqual([0, 1, 2, 0]);
-    expect(session.snapshot().players.map((player) => player.color)).toEqual(PLAYER_COLORS.slice(0, 3));
+  it('đủ màu khác nhau cho số người tối đa', () => {
+    expect(PLAYER_COLORS.length).toBeGreaterThanOrEqual(MAX_PLAYERS);
+    expect(new Set(PLAYER_COLORS).size).toBe(PLAYER_COLORS.length);
   });
 
-  it('báo hòa khi nhiều người cùng điểm cao nhất', () => {
-    const session = new GameSession(2);
-    for (let roll = 0; roll < 40; roll += 1) {
-      session.beginThrow(`r-${roll}`);
-      session.markSettling();
-      session.recordRoll(0);
-      session.finishTransition();
+  it('phòng 8 người: mỗi người một màu, người thứ 9 chỉ được xem', () => {
+    const party = new PartyRoom(8);
+    for (let index = 0; index < 8; index += 1) {
+      expect(party.join(`peer-${index}`, `client-${index}-xxxxxxxx`, '').member).not.toBeNull();
     }
-    expect(session.phase).toBe('GAME_OVER');
-    expect(session.message).toContain('Hòa 0 điểm');
+    const state = party.state();
+    expect(new Set(state.members.map((member) => member.color)).size).toBe(8);
+    expect(state.members.at(-1)!.name).toBe('Người chơi 8');
+    expect(party.join('peer-9', 'client-9-xxxxxxxx', 'Muộn')).toMatchObject({ member: null });
   });
 });

@@ -10,8 +10,9 @@ const GRAVITY = 520;
 const JUMP_VELOCITY = 165;
 const FALL_SECONDS = 0.8;
 
-export type MarbleStatus = 'ready' | 'rolling' | 'falling' | 'finished';
-export type MarbleEvent = 'gem' | 'bump' | 'fall' | 'respawn' | 'jump' | 'boost' | 'finish' | 'drop';
+/** `out`: hết mạng, bị loại khỏi cuộc đua. */
+export type MarbleStatus = 'ready' | 'rolling' | 'falling' | 'finished' | 'out';
+export type MarbleEvent = 'gem' | 'bump' | 'fall' | 'respawn' | 'jump' | 'boost' | 'finish' | 'drop' | 'out';
 
 export interface MarbleState {
   x: number;
@@ -113,7 +114,7 @@ export function stepMarble(
   dt: number,
   events: MarbleEvent[],
 ): void {
-  if (marble.status === 'ready') return;
+  if (marble.status === 'ready' || marble.status === 'out') return;
   if (marble.status === 'finished') {
     marble.vy = Math.max(0, marble.vy - 80 * dt);
     marble.vx -= marble.vx * 3 * dt;

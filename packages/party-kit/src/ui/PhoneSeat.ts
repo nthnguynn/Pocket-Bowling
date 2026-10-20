@@ -1,4 +1,4 @@
-import { escapeHtml, initials, sanitizePlayerName } from '../game/players';
+import { escapeHtml, initials, sanitizePlayerName } from '../players';
 import type { PartyState, Seat } from '../types';
 
 const NAME_KEY = 'pocket-player-name';
@@ -30,7 +30,7 @@ export class PhoneSeat {
       </section>
 
       <section class="phone-lobby" aria-label="Sảnh chờ">
-        <div class="phone-section-head"><b>Đang chờ trong sảnh</b><span data-lobby-count>0/6</span></div>
+        <div class="phone-section-head"><b>Đang chờ trong sảnh</b><span data-lobby-count>—</span></div>
         <ul class="party-roster party-roster--phone" data-phone-roster></ul>
         <button class="primary-button phone-wide-button is-hidden" data-phone-start>BẮT ĐẦU VÁN</button>
         <p class="phone-lobby-copy" data-lobby-wait>Chờ chủ phòng bắt đầu ván…</p>

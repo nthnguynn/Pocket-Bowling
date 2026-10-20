@@ -1,6 +1,6 @@
-import type { ThemeMode } from '../ui/theme';
+import type { ThemeMode } from '@pocket/party-kit';
 import { LANE_WIDTH, MARBLE_RADIUS, sweeperX, type Obstacle } from './course';
-import type { MarbleRace, RaceEvent } from './MarbleRace';
+import { LIVES, type MarbleRace, type RaceEvent } from './MarbleRace';
 
 interface Palette {
   laneTop: string;
@@ -87,8 +87,10 @@ export class MarbleRenderer {
       }
     };
     if (event.type === 'gem') { floater('+◆', this.palette.gem); burst(8, this.palette.gem, 40); }
-    if (event.type === 'fall') floater('RƠI HỐ!', this.palette.warning);
-    if (event.type === 'drop') { floater('RƠI BI KHỎI KHAY!', this.palette.warning); this.shakes[event.racer] = 0.4; }
+    // Mạng cuối thì sự kiện 'out' tự hiện chữ BỊ LOẠI, không cần báo −♥.
+    if (event.type === 'fall') floater(racer.lives > 0 ? 'RƠI HỐ! −♥' : 'RƠI HỐ!', this.palette.warning);
+    if (event.type === 'drop') { floater(racer.lives > 0 ? 'RƠI BI KHỎI KHAY! −♥' : 'RƠI BI KHỎI KHAY!', this.palette.warning); this.shakes[event.racer] = 0.4; }
+    if (event.type === 'out') { floater('BỊ LOẠI!', this.palette.warning); burst(30, racer.color, 90); this.shakes[event.racer] = 0.5; }
     if (event.type === 'bump') this.shakes[event.racer] = 0.25;
     if (event.type === 'boost') floater('TĂNG TỐC!', this.palette.boost);
     if (event.type === 'finish') { floater('VỀ ĐÍCH!', racer.color); burst(26, racer.color, 70); }
@@ -101,7 +103,8 @@ export class MarbleRenderer {
     const count = race.racers.length;
     const laneHeight = this.height - TOP_MARGIN - BOTTOM_MARGIN;
     const available = this.width - 40 - LANE_GAP * (count - 1);
-    const laneWidth = Math.max(120, Math.min(available / count, laneHeight * 0.62, 560));
+    // 8 làn vẫn vừa màn hình laptop: làn hẹp tới 84px, chữ trong làn tự thu nhỏ.
+    const laneWidth = Math.max(84, Math.min(available / count, laneHeight * 0.62, 560));
     const total = laneWidth * count + LANE_GAP * (count - 1);
     const startX = (this.width - total) / 2;
     const ranks = new Map(race.ranking().map((racer, rank) => [racer, rank + 1]));
@@ -186,7 +189,7 @@ export class MarbleRenderer {
     });
     ctx.globalAlpha = 1;
 
-    this.drawMarble(racer.color, marble, sx(marble.x), sy(marble.y), scale, now);
+    if (marble.status !== 'out') this.drawMarble(racer.color, marble, sx(marble.x), sy(marble.y), scale, now);
 
     this.floaters.filter((floater) => floater.lane === index).forEach((floater) => {
       const age = (now - floater.born) / 1100;
@@ -385,40 +388,47 @@ export class MarbleRenderer {
     const racer = race.racers[index]!;
     const marble = racer.marble;
     const pad = 10;
+    // Làn hẹp (nhiều người chơi): tên xuống dòng riêng để không bị cắt mất.
+    const compact = width < 210;
+    const hudHeight = compact ? 56 : 38;
 
     // Tên + hạng + ngọc.
     ctx.fillStyle = p.hud;
     ctx.beginPath();
-    ctx.roundRect(left + pad, top + pad, width - pad * 2, 38, 12);
+    ctx.roundRect(left + pad, top + pad, width - pad * 2, hudHeight, 12);
     ctx.fill();
     const medal = ['#ffc23d', '#d8d8e6', '#e0a070'][rank - 1] ?? p.textSoft;
+    const medalX = left + pad + (compact ? 16 : 20);
+    const medalR = compact ? 11 : 13;
     ctx.fillStyle = medal;
     ctx.beginPath();
-    ctx.arc(left + pad + 20, top + pad + 19, 13, 0, Math.PI * 2);
+    ctx.arc(medalX, top + pad + 19, medalR, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#1a0a14';
-    ctx.font = `800 16px ${FONT}`;
+    ctx.font = `800 ${compact ? 14 : 16}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(rank), left + pad + 20, top + pad + 20);
+    ctx.fillText(String(rank), medalX, top + pad + 20);
     ctx.textAlign = 'left';
     ctx.fillStyle = racer.color;
-    ctx.fillRect(left + pad + 40, top + pad + 11, 4, 16);
+    const nameX = compact ? left + pad + 10 : left + pad + 50;
+    const nameY = compact ? top + pad + 42 : top + pad + 20;
+    ctx.fillRect(nameX - 10 + (compact ? 4 : 0), nameY - 8, compact ? 3 : 4, 16);
     ctx.fillStyle = p.text;
-    ctx.font = `700 ${width < 200 ? 14 : 17}px ${FONT}`;
+    ctx.font = `700 ${compact ? 14 : 17}px ${FONT}`;
     const gemsLabel = `◆ ${marble.collected.size}`;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(left + pad + 50, top + pad, width - pad * 2 - 100, 38);
+    ctx.rect(nameX, top + pad, compact ? width - pad * 2 - 14 : width - pad * 2 - 100, hudHeight);
     ctx.clip();
-    ctx.fillText(racer.name, left + pad + 50, top + pad + 20);
+    ctx.fillText(racer.name, nameX, nameY);
     ctx.restore();
     ctx.textAlign = 'right';
     ctx.fillStyle = p.gem;
     ctx.fillText(gemsLabel, left + width - pad - 10, top + pad + 20);
 
     // Tiến độ của mọi người: chấm màu dọc mép phải làn.
-    const barTop = top + 60;
+    const barTop = top + 22 + hudHeight;
     const barBottom = top + height - 54;
     const barX = left + width - 9;
     ctx.fillStyle = p.stripe;
@@ -448,6 +458,34 @@ export class MarbleRenderer {
     ctx.beginPath();
     ctx.arc(trayX + trayWidth / 2 + racer.tray.position * (trayWidth / 2 - 6), trayY, 6, 0, Math.PI * 2);
     ctx.fill();
+
+    // Mạng còn lại: ngay trên khay.
+    ctx.font = `800 ${width < 210 ? 15 : 18}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let life = 0; life < LIVES; life += 1) {
+      ctx.fillStyle = life < racer.lives ? p.warning : p.stripe;
+      ctx.fillText('♥', left + width / 2 + (life - (LIVES - 1) / 2) * (width < 210 ? 16 : 20), trayY - 24);
+    }
+
+    if (marble.status === 'out') {
+      // Bị loại: phủ tối cả làn để nhìn là biết.
+      ctx.fillStyle = 'rgba(8,3,10,0.55)';
+      ctx.beginPath();
+      ctx.roundRect(left, top, width, height, 18);
+      ctx.fill();
+      ctx.fillStyle = p.hud;
+      ctx.beginPath();
+      ctx.roundRect(left + pad, top + height * 0.36, width - pad * 2, 74, 16);
+      ctx.fill();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = p.warning;
+      ctx.font = `800 ${Math.min(34, width / 5)}px ${FONT}`;
+      ctx.fillText('BỊ LOẠI', left + width / 2, top + height * 0.36 + 28);
+      ctx.fillStyle = p.text;
+      ctx.font = `700 ${width < 210 ? 14 : 17}px ${FONT}`;
+      ctx.fillText(`hết mạng · ${Math.round(Math.min(1, marble.y / race.course.length) * 100)}% đường`, left + width / 2, top + height * 0.36 + 56);
+    }
 
     if (marble.status === 'finished') {
       ctx.fillStyle = p.hud;

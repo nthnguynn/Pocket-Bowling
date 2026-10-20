@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BALL_RADIUS, LANE_HALF_WIDTH, PhysicsLane } from './PhysicsLane';
-import type { ThemeMode } from '../ui/theme';
+import type { ThemeMode } from '@pocket/party-kit';
 
 export type QualityMode = 'auto' | 'high' | 'low';
 export type CameraMode = 'dynamic' | 'chase' | 'side' | 'pins' | 'top';

@@ -1,35 +1,46 @@
-import { sanitizePlayerName } from '../game/players';
-import type { RaceView } from '../marble/MarbleRace';
-import type { GameSnapshot, PartyState, Seat, ThrowInput } from '../types';
+import { sanitizePlayerName } from '../players';
+import type { PartyState, Seat } from '../types';
 
-export interface ThrowCommand extends ThrowInput {
-  type: 'throw';
-  seq: string;
-}
-
-export type ControllerCommand =
-  | ThrowCommand
-  | { type: 'aim'; aim: number; spin: number; position: number }
-  | { type: 'prepare'; seq: string }
-  | { type: 'cancel'; seq: string }
+/** Lệnh từ điện thoại mà mọi game đều hiểu: vào phòng, điều khiển sảnh, đo độ trễ. */
+export type LobbyAction = 'start' | 'restart' | 'next';
+export type PartyCommand =
   | { type: 'hello'; clientId: string; name: string }
-  | { type: 'lobby'; action: 'start' | 'restart'; seq: string }
-  | { type: 'jump'; seq: string }
+  | { type: 'lobby'; action: LobbyAction; seq: string }
   | { type: 'ping'; id: string; sentAt: number };
 
-export type HostCommand =
+/**
+ * Lệnh riêng của từng game (ném bóng, nhảy, húc…). Có `seq` thì host gửi lại ack.
+ * Thư viện chung không biết nội dung: mỗi game tự khai báo kiểu và tự kiểm tra bằng `CommandParser`.
+ */
+export interface GameCommand { type: string; seq?: string }
+
+/** Kiểm tra lệnh riêng của game; trả về null nếu không hợp lệ (bị chặn, không tới game). */
+export type CommandParser<C extends GameCommand> = (data: Record<string, unknown>) => C | null;
+
+/**
+ * Tin từ màn hình chính xuống điện thoại. `view` là bản tóm tắt trạng thái game (mỗi game một kiểu),
+ * `event` là sự kiện tức thời cho điện thoại (ví dụ rung khi bị húc).
+ */
+export type HostMessage<View = unknown, Event = unknown> =
   | { type: 'ack'; seq: string; accepted: boolean; reason?: string }
-  | { type: 'state'; snapshot: GameSnapshot; party: PartyState; seat: Seat }
-  | { type: 'race'; view: RaceView | null; party: PartyState; seat: Seat }
+  | { type: 'view'; view: View | null; party: PartyState; seat: Seat }
+  | { type: 'event'; event: Event }
   | { type: 'pong'; id: string; sentAt: number }
   | { type: 'notice'; message: string };
 
-const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-const validSeq = (value: unknown): value is string => typeof value === 'string' && value.length <= 80;
+export const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+export const validSeq = (value: unknown): value is string => typeof value === 'string' && value.length <= 80;
 export const isClientId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(value);
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function parseControllerCommand(raw: string): ControllerCommand | null {
+const LOBBY_ACTIONS: readonly LobbyAction[] = ['start', 'restart', 'next'];
+const PARTY_TYPES = new Set(['hello', 'lobby', 'ping']);
+
+/** Không có lệnh riêng nào (ví dụ trang kho game). */
+export const noGameCommands: CommandParser<never> = () => null;
+
+/** Parse + validate một tin nhắn từ điện thoại: lệnh chung trước, còn lại giao cho parser của game. */
+export function parseControllerCommand<C extends GameCommand>(raw: string, parseGame: CommandParser<C>): PartyCommand | C | null {
   if (raw.length > 2_048) return null;
   let value: unknown;
   try {
@@ -39,41 +50,26 @@ export function parseControllerCommand(raw: string): ControllerCommand | null {
   }
   if (!value || typeof value !== 'object') return null;
   const data = value as Record<string, unknown>;
-  if (data.type === 'throw') {
-    if (typeof data.seq !== 'string' || data.seq.length > 80 || !finite(data.power)
-      || !finite(data.aim) || !finite(data.spin) || !finite(data.position)) return null;
-    if (!['phone-touch', 'phone-motion'].includes(String(data.source))) return null;
-    return {
-      type: 'throw',
-      seq: data.seq,
-      power: clamp(data.power, 0.2, 1),
-      aim: clamp(data.aim, -1, 1),
-      spin: clamp(data.spin, -1, 1),
-      position: clamp(data.position, -1, 1),
-      source: data.source as 'phone-touch' | 'phone-motion',
-    };
-  }
-  if (data.type === 'aim' && finite(data.aim) && finite(data.spin) && finite(data.position)) {
-    return { type: 'aim', aim: clamp(data.aim, -1, 1), spin: clamp(data.spin, -1, 1), position: clamp(data.position, -1, 1) };
-  }
-  if ((data.type === 'prepare' || data.type === 'cancel') && validSeq(data.seq)) {
-    return { type: data.type, seq: data.seq };
-  }
   if (data.type === 'hello' && isClientId(data.clientId)) {
     return { type: 'hello', clientId: data.clientId, name: sanitizePlayerName(data.name) };
   }
-  if (data.type === 'jump' && validSeq(data.seq)) {
-    return { type: 'jump', seq: data.seq };
-  }
-  if (data.type === 'lobby' && (data.action === 'start' || data.action === 'restart') && validSeq(data.seq)) {
-    return { type: 'lobby', action: data.action, seq: data.seq };
+  if (data.type === 'lobby' && LOBBY_ACTIONS.includes(data.action as LobbyAction) && validSeq(data.seq)) {
+    return { type: 'lobby', action: data.action as LobbyAction, seq: data.seq };
   }
   if (data.type === 'ping' && typeof data.id === 'string' && finite(data.sentAt)) {
     return { type: 'ping', id: data.id.slice(0, 80), sentAt: data.sentAt };
   }
-  return null;
+  // Tên lệnh chung mà sai định dạng thì chặn luôn, không để game hiểu nhầm.
+  if (typeof data.type !== 'string' || PARTY_TYPES.has(data.type)) return null;
+  const command = parseGame(data);
+  if (command && command.seq !== undefined && !validSeq(command.seq)) return null;
+  return command;
 }
 
-export function serialize(message: ControllerCommand | HostCommand): string {
+export function isPartyCommand(command: PartyCommand | GameCommand): command is PartyCommand {
+  return PARTY_TYPES.has(command.type);
+}
+
+export function serialize(message: PartyCommand | GameCommand | HostMessage): string {
   return JSON.stringify(message);
 }

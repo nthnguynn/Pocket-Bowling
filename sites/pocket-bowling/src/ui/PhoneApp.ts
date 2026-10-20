@@ -1,11 +1,11 @@
-import type { GameSnapshot, PartyState, Seat } from '../types';
+import { escapeHtml, initials, PhoneConnection, sequence, type PartyState, type Seat } from '@pocket/party-kit';
 import { MotionController } from '../controller/MotionController';
-import { escapeHtml, initials } from '../game/players';
 import { scoreFrames } from '../game/scoring';
-import { PhoneConnection, sequence } from './PhoneConnection';
+import type { BowlingCommand } from '../protocol';
+import type { GameSnapshot } from '../types';
 
 export class PhoneApp {
-  private readonly link: PhoneConnection;
+  private readonly link: PhoneConnection<GameSnapshot, never, BowlingCommand>;
   private readonly motion = new MotionController();
   private mode: 'touch' | 'motion' = 'touch';
   private controls = { position: 0, aim: 0, spin: 0, power: 0.65 };
@@ -29,7 +29,9 @@ export class PhoneApp {
   }
 
   private bindNetwork(): void {
-    this.network.onGameState = (snapshot, party, seat) => this.renderState(snapshot, party, seat);
+    this.network.onView = (snapshot, party, seat) => {
+      if (snapshot) this.renderState(snapshot, party, seat);
+    };
     this.network.onAck = (_seq, accepted, reason) => {
       this.query('[data-feedback]').textContent = accepted ? 'Màn hình chính đã nhận lệnh ✓' : (reason ?? 'Lệnh chưa được nhận');
       if (accepted && navigator.vibrate) navigator.vibrate(35);
@@ -140,7 +142,8 @@ export class PhoneApp {
 
   private sendThrow(source: 'phone-touch' | 'phone-motion'): void {
     if (!this.canThrow) return;
-    const sent = this.network.sendThrow({
+    const sent = this.network.sendCommand({
+      type: 'throw',
       seq: sequence('throw'),
       ...this.controls,
       source,
@@ -230,7 +233,7 @@ export class PhoneApp {
 
   private template(): string {
     return `<main class="phone-shell" data-phone-shell data-stage="offline">
-      ${PhoneConnection.headerHtml('CONTROLLER')}
+      ${PhoneConnection.headerHtml('CONTROLLER', '<div class="brand-ball"><i></i><i></i><i></i></div>')}
 
       <section class="phone-game-state"><span data-remote-frame>FRAME —</span><strong data-remote-player>—</strong><p data-remote-message>Kết nối với màn hình chính để bắt đầu.</p></section>
 

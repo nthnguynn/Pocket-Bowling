@@ -1,4 +1,4 @@
-import { MAX_PLAYERS, PLAYER_COLORS } from '../game/players';
+import { MAX_PLAYERS, PLAYER_COLORS } from '../players';
 import type { PartyStage, PartyState, PlayerSetup, Seat } from '../types';
 
 interface Member {

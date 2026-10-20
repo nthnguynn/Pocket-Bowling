@@ -1,9 +1,10 @@
-import type { PlayerSetup } from '../types';
+import type { PlayerSetup } from './types';
 
-export const MAX_PLAYERS = 6;
+/** Trần chung của cả kho; mỗi game tự đặt giới hạn riêng trong `hub/gameCatalog.ts`. */
+export const MAX_PLAYERS = 8;
 
-/** Màu đầu tiên trùng màu bóng gốc để chế độ một người giữ nguyên diện mạo. */
-export const PLAYER_COLORS = ['#ff5caf', '#4cc9ff', '#ffc23d', '#58e39a', '#a98bff', '#ff8a4c'] as const;
+/** Màu đầu tiên trùng màu bóng gốc để chế độ một người giữ nguyên diện mạo. Mỗi người một màu nên cần ít nhất MAX_PLAYERS màu. */
+export const PLAYER_COLORS = ['#ff5caf', '#4cc9ff', '#ffc23d', '#58e39a', '#a98bff', '#ff8a4c', '#ff5a5a', '#eceaf4'] as const;
 
 export function defaultPlayers(count: number): PlayerSetup[] {
   const total = Math.max(1, Math.min(MAX_PLAYERS, Math.round(count)));

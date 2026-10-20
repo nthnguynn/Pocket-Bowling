@@ -1,12 +1,15 @@
-import type { RaceView } from '../marble/MarbleRace';
-import type { GameSnapshot, PartyState, Seat } from '../types';
-import { serialize, type ControllerCommand, type HostCommand, type ThrowCommand } from './protocol';
+import type { PartyState, Seat } from '../types';
+import { serialize, type GameCommand, type HostMessage, type PartyCommand } from './protocol';
 import { SignalingClient, type SignalMessage } from './SignalingClient';
 
-export class WebRTCController {
+/**
+ * Phía điện thoại. `View` là bản tóm tắt trạng thái game host gửi xuống, `Event` là sự kiện tức thời
+ * (mỗi game tự định nghĩa hai kiểu này).
+ */
+export class WebRTCController<View = unknown, Event = unknown, Command extends GameCommand = never> {
   onState?: (state: string, detail?: string) => void;
-  onGameState?: (snapshot: GameSnapshot, party: PartyState, seat: Seat) => void;
-  onRace?: (view: RaceView | null, party: PartyState, seat: Seat) => void;
+  onView?: (view: View | null, party: PartyState, seat: Seat) => void;
+  onEvent?: (event: Event) => void;
   onAck?: (seq: string, accepted: boolean, reason?: string) => void;
   onNotice?: (message: string) => void;
   /** Kênh lệnh vừa mở: lúc gửi hello để host gán ghế. */
@@ -38,14 +41,11 @@ export class WebRTCController {
     this.signaling.send({ type: 'controller:join', room: this.room, clientId: this.clientId });
   }
 
-  sendCommand(command: ControllerCommand): boolean {
+  /** `Command` là lệnh riêng của game này: điện thoại không gửi nhầm được lệnh của game khác. */
+  sendCommand(command: PartyCommand | Command): boolean {
     if (this.control?.readyState !== 'open' || this.control.bufferedAmount > 128_000) return false;
     this.control.send(serialize(command));
     return true;
-  }
-
-  sendThrow(command: Omit<ThrowCommand, 'type'>): boolean {
-    return this.sendCommand({ ...command, type: 'throw' });
   }
 
   sendMotion(sample: Record<string, number>): boolean {
@@ -114,11 +114,9 @@ export class WebRTCController {
     channel.onmessage = (event) => {
       if (this.control !== channel || typeof event.data !== 'string' || event.data.length > 100_000) return;
       try {
-        const message = JSON.parse(event.data) as HostCommand;
-        if (message.type === 'state' && message.snapshot && message.party && message.seat) {
-          this.onGameState?.(message.snapshot, message.party, message.seat);
-        }
-        if (message.type === 'race' && message.party && message.seat) this.onRace?.(message.view ?? null, message.party, message.seat);
+        const message = JSON.parse(event.data) as HostMessage<View, Event>;
+        if (message.type === 'view' && message.party && message.seat) this.onView?.(message.view ?? null, message.party, message.seat);
+        if (message.type === 'event') this.onEvent?.(message.event);
         if (message.type === 'ack') this.onAck?.(message.seq, message.accepted, message.reason);
         if (message.type === 'notice' && typeof message.message === 'string') this.onNotice?.(message.message);
       } catch {

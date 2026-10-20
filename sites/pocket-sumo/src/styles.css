@@ -1,0 +1,41 @@
+/* Pocket Sumo: TV */
+.sumo-shell { background: #130814; }
+.brand-sumo { position: relative; width: 38px; height: 38px; flex: none; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #ffd8eb, #ff5caf 40%, #8b1d55); box-shadow: 0 0 22px rgba(255,92,175,.35); }
+.brand-sumo::before { content: ''; position: absolute; top: -5px; left: 50%; width: 12px; height: 9px; transform: translateX(-50%); border-radius: 50%; background: #2a1420; }
+.brand-sumo::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: 7px; height: 6px; border-radius: 1px 1px 8px 8px; background: rgba(42,20,32,.72); }
+.brand-sumo i { position: absolute; top: 13px; left: 11px; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 10px 0 #fff; }
+.sumo-shell .game-readout strong { font-variant-numeric: tabular-nums; }
+.sumo-shell.is-warning .game-readout small { color: #ff6b7a; font-weight: 700; animation: sumo-blink .5s steps(2) infinite; }
+.ko-feed { position: absolute; z-index: 5; top: 88px; right: 20px; display: grid; justify-items: end; gap: 6px; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.ko-feed li { padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--glass); backdrop-filter: blur(10px); font: 600 14px 'Barlow Condensed'; letter-spacing: .03em; animation: ko-in .35s cubic-bezier(.2,.8,.3,1.2) both; }
+.ko-feed li:first-child { font-size: 17px; }
+.ko-feed b { color: var(--player-color); font-weight: 800; }
+.immersive-phone > .sumo-pad { order: 5; }
+.sumo-fullscreen { min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; font: 700 9px 'Barlow Condensed'; letter-spacing: .1em; }
+.sumo-pad { position: relative; height: max(260px, 44vh); margin: 4px 0 12px; overflow: hidden; border: 2px solid color-mix(in srgb, var(--player-color) 50%, transparent); border-radius: 28px; background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--player-color) 22%, transparent), transparent 62%), rgba(255,255,255,.03); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; transition: border-color .3s, filter .3s; }
+.sumo-pad::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; }
+.pad-canvas { position: absolute; inset: 0; display: block; }
+.pad-hint { position: absolute; left: 16px; right: 16px; top: 14px; margin: 0; color: color-mix(in srgb, var(--player-color) 70%, #fff); font: 700 11px 'Barlow Condensed'; letter-spacing: .14em; text-align: center; text-transform: uppercase; pointer-events: none; transition: opacity .4s; }
+.sumo-pad.was-touched .pad-hint { opacity: .45; }
+.sumo-pad.is-hit { animation: pad-shake .4s; }
+.sumo-pad.is-hit::after { opacity: 1; box-shadow: inset 0 0 70px rgba(255,77,94,.85); animation: pad-glow .45s both; }
+.sumo-pad.is-good::after { opacity: 1; box-shadow: inset 0 0 70px color-mix(in srgb, var(--player-color) 85%, transparent); animation: pad-glow .5s both; }
+.sumo-pad.is-warn::after { opacity: 1; box-shadow: inset 0 0 70px rgba(255,195,106,.85); animation: pad-glow .5s both; }
+.sumo-pad.is-ready::after { opacity: 1; box-shadow: inset 0 0 0 4px var(--player-color); animation: pad-glow .35s both; }
+.sumo-pad.is-denied { animation: pad-nudge .25s; }
+.immersive-phone.is-ghost .sumo-pad { border-style: dashed; border-color: rgba(255,255,255,.4); background: radial-gradient(circle at 50% 60%, rgba(255,255,255,.1), transparent 62%), rgba(255,255,255,.02); }
+.immersive-phone[data-stage='offline'] .sumo-pad, .immersive-phone[data-stage='local'] .sumo-pad, .immersive-phone[data-stage='party']:not(.is-playing) .sumo-pad { display: none; }
+.immersive-phone.is-playing .sumo-pad { flex: 1; height: auto; min-height: 220px; margin-bottom: 0; }
+:root[data-theme='light'] .sumo-shell { background: #f4ddea; }
+:root[data-theme='light'] .ko-feed b { color: color-mix(in srgb, var(--player-color) 55%, #2d1426); }
+:root[data-theme='light'] .sumo-pad { background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--player-color) 20%, transparent), transparent 62%), rgba(255,255,255,.55); }
+:root[data-theme='light'] .pad-hint { color: color-mix(in srgb, var(--player-color) 55%, #2d1426); }
+:root[data-theme='light'] .immersive-phone.is-ghost .sumo-pad { border-color: rgba(113,47,86,.35); }
+@media (max-width: 1000px) {
+  .ko-feed { top: 70px; right: 10px; }
+}
+@keyframes sumo-blink { 50% { opacity: .45; } }
+@keyframes ko-in { from { opacity: 0; transform: translateX(30px) scale(.9); } }
+@keyframes pad-glow { to { opacity: 0; } }
+@keyframes pad-shake { 20% { transform: translate(-7px, 3px) rotate(-.6deg); } 40% { transform: translate(6px, -3px) rotate(.5deg); } 60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); } }
+@keyframes pad-nudge { 33% { transform: translateX(-4px); } 66% { transform: translateX(4px); } }

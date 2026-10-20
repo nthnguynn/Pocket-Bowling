@@ -1,5 +1,5 @@
-import type { GamePhase, GameSnapshot, PlayerData, PlayerSetup } from '../types';
-import { defaultPlayers, MAX_PLAYERS } from './players';
+import { defaultPlayers, MAX_PLAYERS, type PlayerSetup } from '@pocket/party-kit';
+import type { GamePhase, GameSnapshot, PlayerData } from '../types';
 import { createEmptyFrames, scoreFrames } from './scoring';
 
 export interface RollResolution {

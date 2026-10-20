@@ -1,5 +1,5 @@
 import type { NetworkStats } from '../types';
-import { parseControllerCommand, serialize, type ControllerCommand, type HostCommand } from './protocol';
+import { isPartyCommand, parseControllerCommand, serialize, type CommandParser, type GameCommand, type HostMessage, type PartyCommand } from './protocol';
 import { SignalingClient, type SignalMessage } from './SignalingClient';
 
 const INITIAL_STATS: NetworkStats = {
@@ -25,7 +25,8 @@ interface HostPeer {
   open: boolean;
 }
 
-export class WebRTCHost {
+/** Phía màn hình chính. `C` là lệnh riêng của game, được kiểm tra bằng `parseGame` trước khi tới game. */
+export class WebRTCHost<C extends GameCommand = never> {
   room = '';
   iceServers: RTCIceServer[] = [];
   stats: NetworkStats = { ...INITIAL_STATS };
@@ -34,7 +35,7 @@ export class WebRTCHost {
   onPeerOpen?: (peer: string) => void;
   onPeerClose?: (peer: string) => void;
   /** Lệnh đã validate. Với lệnh có `seq`, kết quả trả về được gửi lại thành ack. */
-  onCommand?: (peer: string, command: ControllerCommand, receivedAt: number) => CommandResult | void;
+  onCommand?: (peer: string, command: PartyCommand | C, receivedAt: number) => CommandResult | void;
   onTelemetry?: (peer: string, sample: Record<string, unknown>) => void;
   private readonly signaling = new SignalingClient();
   private readonly peers = new Map<string, HostPeer>();
@@ -42,7 +43,7 @@ export class WebRTCHost {
   private statsTimer = 0;
   private keepaliveTimer = 0;
 
-  constructor() {
+  constructor(private readonly parseGame: CommandParser<C>) {
     this.signaling.onState = (state, error) => {
       this.patchStats({ signaling: state, error: error ?? this.stats.error });
     };
@@ -93,7 +94,7 @@ export class WebRTCHost {
     void this.collectStats();
   }
 
-  send(peer: string, message: HostCommand): void {
+  send(peer: string, message: HostMessage): void {
     const control = this.peers.get(peer)?.control;
     if (control?.readyState === 'open' && control.bufferedAmount < 256_000) control.send(serialize(message));
   }
@@ -157,17 +158,17 @@ export class WebRTCHost {
     control.onerror = () => this.patchStats({ error: 'Kênh lệnh WebRTC gặp lỗi.' });
     control.onmessage = (event) => {
       if (!current() || typeof event.data !== 'string') return;
-      const command = parseControllerCommand(event.data);
+      const command = parseControllerCommand(event.data, this.parseGame);
       if (!command) {
         this.patchStats({ error: 'Đã chặn input điều khiển không hợp lệ.' });
         return;
       }
-      if (command.type === 'ping') {
+      if (isPartyCommand(command) && command.type === 'ping') {
         this.send(id, { type: 'pong', id: command.id, sentAt: command.sentAt });
         return;
       }
       const result = this.onCommand?.(id, command, performance.now());
-      if ('seq' in command) {
+      if ('seq' in command && typeof command.seq === 'string') {
         this.send(id, { type: 'ack', seq: command.seq, accepted: result?.accepted ?? false, reason: result?.reason });
       }
     };

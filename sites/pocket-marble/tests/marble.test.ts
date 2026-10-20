@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { generateCourse, LANE_WIDTH, MARBLE_RADIUS, type Course, type Obstacle } from '../src/marble/course';
-import { COUNTDOWN_SECONDS, FINISH_GRACE_SECONDS, GEM_BONUS_SECONDS, MarbleRace } from '../src/marble/MarbleRace';
-import { createMarble, CRUISE_SPEED, stepMarble, stepTray, type MarbleEvent } from '../src/marble/physics';
+import { generateCourse, LANE_WIDTH, MARBLE_RADIUS, type Course, type Obstacle } from '../src/course';
+import { COUNTDOWN_SECONDS, FINISH_GRACE_SECONDS, GEM_BONUS_SECONDS, LIVES, MarbleRace, type RaceEvent } from '../src/MarbleRace';
+import { createMarble, CRUISE_SPEED, stepMarble, stepTray, type MarbleEvent } from '../src/physics';
 
 const DT = 1 / 120;
 
@@ -154,7 +154,77 @@ describe('cuộc đua', () => {
   });
 });
 
+describe('mạng và bị loại', () => {
+  /** Cuộc đua đã qua đếm ngược, chạy trên đường tự dựng. */
+  function racing(track: Course, count = 1): MarbleRace {
+    const race = new MarbleRace(Array.from({ length: count }, (_, index) => ({ name: `P${index}`, color: '#ff5caf' })), 7);
+    Object.assign(race, { course: track });
+    race.time = 0;
+    race.phase = 'racing';
+    race.racers.forEach((racer) => { racer.marble.status = 'rolling'; });
+    return race;
+  }
+
+  function run(race: MarbleRace, seconds: number): RaceEvent[] {
+    const events: RaceEvent[] = [];
+    for (let t = 0; t < seconds && race.phase !== 'finished'; t += DT) race.step(DT, events);
+    return events;
+  }
+
+  it('rơi hố mất một mạng rồi được đặt lại; hết mạng thì bị loại', () => {
+    const hole: Obstacle = { kind: 'hole', x: 0, y: 100, w: LANE_WIDTH, h: 26, safeX: 50 };
+    const race = racing(course([hole], 2_000));
+    const events: RaceEvent[] = [];
+    for (let t = 0; t < 5 && !events.some((event) => event.type === 'respawn'); t += DT) race.step(DT, events);
+    expect(events.filter((event) => event.type === 'fall')).toHaveLength(1);
+    expect(race.racers[0]!.lives).toBe(LIVES - 1);
+    expect(race.racers[0]!.marble.status).toBe('rolling');
+    // Không nhảy thì cứ rơi mãi đúng hố đó cho tới khi hết mạng.
+    events.push(...run(race, 20));
+    expect(events.filter((event) => event.type === 'fall')).toHaveLength(LIVES);
+    expect(events.filter((event) => event.type === 'out')).toHaveLength(1);
+    expect(events.filter((event) => event.type === 'respawn')).toHaveLength(LIVES - 1);
+    expect(race.racers[0]!.marble.status).toBe('out');
+    expect(race.racers[0]!.lives).toBe(0);
+    // Chỉ có một người và người đó đã bị loại: cuộc đua kết thúc luôn.
+    expect(race.phase).toBe('finished');
+  });
+
+  it('làm rơi bi khỏi khay cũng mất một mạng', () => {
+    const race = racing(course([], 20_000));
+    race.setTilt(0, 1);
+    const events = run(race, 4);
+    expect(events.some((event) => event.type === 'drop')).toBe(true);
+    expect(race.racers[0]!.lives).toBe(LIVES - events.filter((event) => event.type === 'drop').length);
+  });
+
+  it('người bị loại xếp sau người còn đua, người về đích xếp đầu', () => {
+    const race = racing(course([], 600), 3);
+    const [finisher, alive, out] = race.racers;
+    finisher!.marble.status = 'finished';
+    finisher!.marble.finishTime = 30;
+    alive!.marble.y = 100;
+    out!.marble.y = 500;
+    out!.marble.status = 'out';
+    expect(race.ranking()).toEqual([0, 1, 2]);
+    expect(race.view().racers[2]).toMatchObject({ status: 'out', score: null });
+  });
+});
+
 describe('bot', () => {
+  it('bot kém thỉnh thoảng rơi hố, bot giỏi nhất thì không', () => {
+    const falls = (skill: number) => {
+      let total = 0;
+      for (let seed = 1; seed <= 15; seed += 1) {
+        const race = new MarbleRace([{ name: 'Bot', color: '#ff5caf', botSkill: skill }], seed);
+        while (race.phase !== 'finished') total += race.advance(1 / 30).filter((event) => event.type === 'fall').length;
+      }
+      return total;
+    };
+    expect(falls(1)).toBe(0);
+    expect(falls(0.5)).toBeGreaterThan(5);
+  });
+
   it('bot về đích trên nhiều đường ngẫu nhiên (đường luôn đi được)', () => {
     const times: number[] = [];
     for (let seed = 1; seed <= 12; seed += 1) {

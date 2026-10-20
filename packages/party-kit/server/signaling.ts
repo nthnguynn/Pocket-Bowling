@@ -11,8 +11,8 @@ interface Room { host: PeerSocket; controllers: Map<string, PeerSocket>; expires
 const host = process.env.SIGNAL_HOST || '0.0.0.0';
 const port = Number(process.env.SIGNAL_PORT || 8787);
 const roomTtl = Math.max(60_000, Number(process.env.ROOM_TTL_MS || 3_600_000));
-// 6 người chơi + chỗ cho vài máy xem/kết nối lại trong lúc socket cũ chưa bị dọn.
-const maxControllers = Math.max(1, Math.min(16, Number(process.env.MAX_CONTROLLERS || 8)));
+// Game đông nhất cho 8 người chơi + chỗ cho vài máy xem/kết nối lại trong lúc socket cũ chưa bị dọn.
+const maxControllers = Math.max(1, Math.min(16, Number(process.env.MAX_CONTROLLERS || 10)));
 const rooms = new Map<string, Room>();
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 

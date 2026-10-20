@@ -1,4 +1,4 @@
-import type { PlayerSetup } from '../types';
+import type { PlayerSetup } from '@pocket/party-kit';
 import { botInput } from './bot';
 import { generateCourse, LANE_WIDTH, type Course } from './course';
 import { createMarble, stepMarble, stepTray, type MarbleEvent, type MarbleState, type TrayState } from './physics';
@@ -9,6 +9,8 @@ export const FINISH_GRACE_SECONDS = 20;
 export const MAX_RACE_SECONDS = 150;
 /** Mỗi viên ngọc trừ ngần này giây vào thành tích. */
 export const GEM_BONUS_SECONDS = 0.5;
+/** Rơi hố hoặc làm rơi bi khỏi khay mất một mạng; hết mạng là bị loại. */
+export const LIVES = 3;
 const DROP_STUN_SECONDS = 1.2;
 const JUMP_BUFFER_SECONDS = 0.15;
 export const STEP_SECONDS = 1 / 120;
@@ -28,6 +30,7 @@ export interface Racer extends PlayerSetup {
   tilt: number;
   jumpBuffer: number;
   drops: number;
+  lives: number;
 }
 
 export interface RacerView {
@@ -42,6 +45,7 @@ export interface RacerView {
   score: number | null;
   rank: number;
   drops: number;
+  lives: number;
   tray: number;
 }
 
@@ -78,6 +82,7 @@ export class MarbleRace {
       tilt: 0,
       jumpBuffer: 0,
       drops: 0,
+      lives: LIVES,
     }));
   }
 
@@ -114,7 +119,8 @@ export class MarbleRace {
     this.racers.forEach((racer, index) => {
       const marbleEvents: MarbleEvent[] = [];
       if (racer.bot && racer.marble.status === 'rolling') {
-        const input = botInput(racer.marble, this.course, this.time, racer.botSkill);
+        // Đổi "vận may" mỗi lần mất mạng: lỡ một hố rồi được đặt lại trước nó thì không lỡ mãi đúng hố đó.
+        const input = botInput(racer.marble, this.course, this.time, racer.botSkill, (index + 1) * 10 + racer.lives);
         racer.tilt = input.tilt;
         if (input.jump) racer.jumpBuffer = JUMP_BUFFER_SECONDS;
       }
@@ -122,19 +128,29 @@ export class MarbleRace {
       const inPlay = racer.marble.status === 'rolling' || racer.marble.status === 'falling';
       if (inPlay && stepTray(racer.tray, racer.tilt, dt)) {
         racer.drops += 1;
+        racer.lives -= 1;
         racer.marble.stun = Math.max(racer.marble.stun, DROP_STUN_SECONDS);
         marbleEvents.push('drop');
+        if (racer.lives <= 0) this.eliminate(racer, marbleEvents);
       }
       const jump = racer.jumpBuffer > 0;
       stepMarble(racer.marble, { tilt: racer.tilt, jump }, this.course, this.time, dt, marbleEvents);
+      if (marbleEvents.includes('fall')) racer.lives -= 1;
+      // Rơi hố mạng cuối: xem hết cảnh rơi rồi mới bị loại, thay vì được đặt lại.
+      const respawn = marbleEvents.indexOf('respawn');
+      if (respawn !== -1 && racer.lives <= 0) {
+        marbleEvents.splice(respawn, 1);
+        this.eliminate(racer, marbleEvents);
+      }
       if (marbleEvents.includes('jump')) racer.jumpBuffer = 0;
       else racer.jumpBuffer = Math.max(0, racer.jumpBuffer - dt);
       marbleEvents.forEach((type) => events.push({ racer: index, type }));
     });
 
     const finished = this.racers.filter((racer) => racer.marble.status === 'finished').length;
+    const out = this.racers.filter((racer) => racer.marble.status === 'out').length;
     if (finished > 0 && this.graceUntil === null) this.graceUntil = this.time + FINISH_GRACE_SECONDS;
-    if (finished === this.racers.length
+    if (finished + out === this.racers.length
       || (this.graceUntil !== null && this.time >= this.graceUntil)
       || this.time >= MAX_RACE_SECONDS) {
       this.phase = 'finished';
@@ -142,21 +158,27 @@ export class MarbleRace {
     return events;
   }
 
+  private eliminate(racer: Racer, events: MarbleEvent[]): void {
+    racer.lives = 0;
+    Object.assign(racer.marble, { status: 'out', vx: 0, vy: 0, z: 0, vz: 0 });
+    events.push('out');
+  }
+
   score(racer: Racer): number | null {
     const { finishTime } = racer.marble;
     return finishTime === null ? null : Math.max(0, finishTime - racer.marble.collected.size * GEM_BONUS_SECONDS);
   }
 
-  /** Chỉ số racer theo thứ hạng: về đích xếp theo thành tích, chưa về xếp theo quãng đường. */
+  /** Chỉ số racer theo thứ hạng: về đích xếp theo thành tích, rồi người còn đua, rồi người bị loại; cùng nhóm thì ai đi xa hơn xếp trên. */
   ranking(): number[] {
+    const group = (racer: Racer) => (this.score(racer) !== null ? 0 : racer.marble.status === 'out' ? 2 : 1);
     return this.racers.map((_, index) => index).sort((a, b) => {
       const ra = this.racers[a]!;
       const rb = this.racers[b]!;
-      const sa = this.score(ra);
-      const sb = this.score(rb);
-      if (sa !== null && sb !== null) return sa - sb;
-      if (sa !== null) return -1;
-      if (sb !== null) return 1;
+      const ga = group(ra);
+      const gb = group(rb);
+      if (ga !== gb) return ga - gb;
+      if (ga === 0) return this.score(ra)! - this.score(rb)!;
       return rb.marble.y - ra.marble.y;
     });
   }
@@ -181,6 +203,7 @@ export class MarbleRace {
         score: this.score(racer),
         rank: ranks.get(index) ?? index + 1,
         drops: racer.drops,
+        lives: racer.lives,
         tray: racer.tray.position,
       })),
     };

@@ -1,14 +1,14 @@
-import type { GameSnapshot, NetworkStats } from '../types';
-import { GameController } from '../game/GameController';
+import {
+  arcadeUrl, bindThemeToggle, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, WebRTCHost,
+  type CommandResult, type NetworkStats, type PartyCommand,
+} from '@pocket/party-kit';
 import type { CameraMode } from '../game/BowlingRenderer';
-import { escapeHtml, initials, MAX_PLAYERS } from '../game/players';
+import { GameController } from '../game/GameController';
 import { rollMarks, scoreFrames } from '../game/scoring';
 import { DesktopInput, type DesktopControls } from '../input/DesktopInput';
-import type { ControllerCommand } from '../network/protocol';
-import { WebRTCHost, type CommandResult } from '../network/WebRTCHost';
-import { PartyRoom } from '../party/PartyRoom';
-import { HostLobby } from './HostLobby';
-import { bindThemeToggle, getTheme, onThemeChange } from './theme';
+import { meta } from '../meta';
+import { parseBowlingCommand, type BowlingCommand } from '../protocol';
+import type { GameSnapshot } from '../types';
 
 const CAMERA_MODES: Array<{ mode: CameraMode; label: string }> = [
   { mode: 'dynamic', label: 'Tự động' },
@@ -21,8 +21,8 @@ const CAMERA_MODES: Array<{ mode: CameraMode; label: string }> = [
 export class DesktopApp {
   private game!: GameController;
   private readonly input = new DesktopInput();
-  private readonly network = new WebRTCHost();
-  private readonly party = new PartyRoom(MAX_PLAYERS);
+  private readonly network = new WebRTCHost(parseBowlingCommand);
+  private readonly party = new PartyRoom(meta.players.max);
   private readonly lobby: HostLobby;
   private snapshot!: GameSnapshot;
   private room = '';
@@ -38,7 +38,7 @@ export class DesktopApp {
 
   constructor(private readonly root: HTMLElement) {
     this.root.innerHTML = this.template();
-    this.lobby = new HostLobby(this.root, 'bowling');
+    this.lobby = new HostLobby(this.root);
     const stage = this.query<HTMLElement>('[data-game-stage]');
     this.game = new GameController(stage, 1);
     this.game.renderer.setTheme(getTheme());
@@ -245,7 +245,7 @@ export class DesktopApp {
     }
   }
 
-  private handleCommand(peer: string, command: ControllerCommand, receivedAt: number): CommandResult | void {
+  private handleCommand(peer: string, command: PartyCommand | BowlingCommand, receivedAt: number): CommandResult | void {
     if (command.type === 'hello') {
       const result = this.party.join(peer, command.clientId, command.name);
       if (!result.member) {
@@ -310,8 +310,8 @@ export class DesktopApp {
 
   private sendState(peer: string): void {
     this.network.send(peer, {
-      type: 'state',
-      snapshot: this.snapshot,
+      type: 'view',
+      view: this.snapshot,
       party: this.party.state(),
       seat: this.party.seat(peer, this.snapshot.activePlayer),
     });
@@ -462,7 +462,7 @@ export class DesktopApp {
           <div class="brand-lockup"><div class="brand-ball"><i></i><i></i><i></i></div><div><strong>POCKET</strong><span>BOWLING</span></div></div>
           <div class="game-readout"><span data-player-name>Bạn</span><strong data-status>Chỉnh hướng, lực và độ xoáy</strong><small data-frame-label>Frame 1 · 10 chai còn lại</small></div>
           <div class="top-actions">
-            <a class="icon-button hub-home-button" href="./" aria-label="Về kho game">⌂ <span>Kho game</span></a>
+            <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
             <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
             <span class="connection-pill" data-connection-pill>đang kết nối</span>
             <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
@@ -524,6 +524,7 @@ export class DesktopApp {
           localTitle: 'Chơi trên máy này',
           localCopy: 'Dùng bàn phím, chuột hoặc một điện thoại làm tay cầm chung cho mọi người.',
           localHint: 'Giữ <kbd>Space</kbd> để lấy lực, thả để ném',
+          players: meta.players,
         })}
 
         <section class="modal-overlay is-hidden" data-end-overlay>

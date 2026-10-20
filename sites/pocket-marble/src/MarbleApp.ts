@@ -1,11 +1,10 @@
-import { defaultPlayers, escapeHtml, initials, MAX_PLAYERS, PLAYER_COLORS } from '../game/players';
-import type { ControllerCommand } from '../network/protocol';
-import { WebRTCHost, type CommandResult } from '../network/WebRTCHost';
-import { PartyRoom } from '../party/PartyRoom';
-import type { NetworkStats, PlayerSetup } from '../types';
-import { HostLobby } from '../ui/HostLobby';
-import { bindThemeToggle, getTheme, onThemeChange } from '../ui/theme';
+import {
+  arcadeUrl, bindThemeToggle, defaultPlayers, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, PLAYER_COLORS,
+  WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand, type PlayerSetup,
+} from '@pocket/party-kit';
 import { MarbleAudio } from './MarbleAudio';
+import { meta } from './meta';
+import { parseMarbleCommand, type MarbleCommand } from './protocol';
 import { MarbleRace, type RacerSetup } from './MarbleRace';
 import { formatSeconds, MarbleRenderer } from './MarbleRenderer';
 
@@ -14,15 +13,16 @@ const BROADCAST_MS = 200;
 const STALE_TILT_MS = 700;
 const BOT_NAMES = ['Bot Tốc Độ', 'Bot Lăn Tròn'];
 
-/** Bàn phím cho chế độ chơi trên máy này: P1 mũi tên, P2 A/D/W. */
+/** Bàn phím cho chế độ chơi trên máy này: P1 mũi tên, P2 A/D/W, P3 J/L/I. */
 const KEYMAP: Array<{ left: string; right: string; jump: string[] }> = [
   { left: 'ArrowLeft', right: 'ArrowRight', jump: ['ArrowUp', 'Space'] },
   { left: 'KeyA', right: 'KeyD', jump: ['KeyW'] },
+  { left: 'KeyJ', right: 'KeyL', jump: ['KeyI'] },
 ];
 
 export class MarbleApp {
-  private readonly network = new WebRTCHost();
-  private readonly party = new PartyRoom(MAX_PLAYERS);
+  private readonly network = new WebRTCHost(parseMarbleCommand);
+  private readonly party = new PartyRoom(meta.players.max);
   private readonly lobby: HostLobby;
   private readonly renderer: MarbleRenderer;
   private readonly audio = new MarbleAudio();
@@ -37,14 +37,14 @@ export class MarbleApp {
   private lastBroadcast = 0;
   private lastCountdown = 0;
   private readonly keys = new Set<string>();
-  private readonly keyboardTilt = [0, 0];
+  private readonly keyboardTilt = KEYMAP.map(() => 0);
   private readonly lastSeq = new Map<string, number>();
   private readonly lastTiltAt = new Map<number, number>();
 
   constructor(private readonly root: HTMLElement) {
     document.title = 'Pocket Marble';
     this.root.innerHTML = this.template();
-    this.lobby = new HostLobby(this.root, 'marble');
+    this.lobby = new HostLobby(this.root);
     this.renderer = new MarbleRenderer(this.query('[data-race-stage]'));
     this.renderer.setTheme(getTheme());
     onThemeChange((theme) => this.renderer.setTheme(theme));
@@ -78,10 +78,12 @@ export class MarbleApp {
     window.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement) return;
       const local = this.party.stage === 'local' && !this.lobbyOpen;
-      KEYMAP.forEach((keys, index) => {
+      // Chỉ phím của người đang chơi: phím P2 khi chơi một mình không được làm bot nhảy.
+      const players = KEYMAP.slice(0, this.humans);
+      players.forEach((keys, index) => {
         if (local && keys.jump.includes(event.code) && !event.repeat) this.race?.jump(index);
       });
-      if (local && KEYMAP.some((keys) => [keys.left, keys.right, ...keys.jump].includes(event.code))) event.preventDefault();
+      if (local && players.some((keys) => [keys.left, keys.right, ...keys.jump].includes(event.code))) event.preventDefault();
       this.keys.add(event.code);
     });
     window.addEventListener('keyup', (event) => this.keys.delete(event.code));
@@ -217,12 +219,14 @@ export class MarbleApp {
     const view = race.view();
     const ranked = race.ranking();
     const winner = view.racers[ranked[0]!]!;
-    this.query('[data-end-title]').textContent = ranked.length > 1 ? `${winner.name} thắng!` : 'Hoàn thành!';
+    this.query('[data-end-title]').textContent = winner.finishTime === null
+      ? 'Không ai về đích!'
+      : ranked.length > 1 ? `${winner.name} thắng!` : 'Hoàn thành!';
     this.query('[data-final-ranking]').innerHTML = ranked.map((index, position) => {
       const racer = view.racers[index]!;
-      const detail = racer.finishTime === null
-        ? `chưa về · ${Math.round(racer.progress * 100)}%`
-        : `${formatSeconds(racer.finishTime)} − ${racer.gems} ◆`;
+      const detail = racer.finishTime !== null
+        ? `${formatSeconds(racer.finishTime)} − ${racer.gems} ◆`
+        : `${racer.status === 'out' ? 'bị loại' : 'chưa về'} · ${Math.round(racer.progress * 100)}%`;
       return `<li style="--player-color: ${racer.color}">
         <b>${position + 1}</b><i>${escapeHtml(initials(racer.name))}</i><span>${escapeHtml(racer.name)}<small>${detail}</small></span><strong>${racer.score === null ? '—' : formatSeconds(racer.score)}</strong>
       </li>`;
@@ -257,7 +261,7 @@ export class MarbleApp {
     }
   }
 
-  private handleCommand(peer: string, command: ControllerCommand): CommandResult | void {
+  private handleCommand(peer: string, command: PartyCommand | MarbleCommand): CommandResult | void {
     if (command.type === 'hello') {
       const result = this.party.join(peer, command.clientId, command.name);
       if (!result.member) {
@@ -283,7 +287,6 @@ export class MarbleApp {
       this.race.jump(seat.player);
       return { accepted: true };
     }
-    return 'seq' in command ? { accepted: false, reason: 'Lệnh không dùng trong Pocket Marble' } : undefined;
   }
 
   private syncParty(): void {
@@ -299,7 +302,7 @@ export class MarbleApp {
     const view = this.race?.view() ?? null;
     const party = this.party.state();
     this.network.openPeers.forEach((peer) => {
-      this.network.send(peer, { type: 'race', view, party, seat: this.party.seat(peer, -1) });
+      this.network.send(peer, { type: 'view', view, party, seat: this.party.seat(peer, -1) });
     });
   }
 
@@ -322,9 +325,9 @@ export class MarbleApp {
       <section class="race-stage" data-race-stage aria-label="Đường đua bi"></section>
       <header class="topbar">
         <div class="brand-lockup"><div class="brand-marble" aria-hidden="true"></div><div><strong>POCKET</strong><span>MARBLE</span></div></div>
-        <div class="game-readout"><span>ĐƯỜNG ĐUA BI</span><strong data-readout>Sảnh chờ</strong><small>Nghiêng điện thoại để lái · chạm để nhảy qua hố</small></div>
+        <div class="game-readout"><span>ĐƯỜNG ĐUA BI</span><strong data-readout>Sảnh chờ</strong><small>Nghiêng để lái · chạm để nhảy · 3 mạng, hết mạng là bị loại</small></div>
         <div class="top-actions">
-          <a class="icon-button hub-home-button" href="./" aria-label="Về kho game">⌂ <span>Kho game</span></a>
+          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
           <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
           <span class="connection-pill" data-connection-pill>đang kết nối</span>
           <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
@@ -338,8 +341,9 @@ export class MarbleApp {
       ${HostLobby.overlayHtml({
         eyebrow: 'ĐƯỜNG ĐUA BI · PARTY',
         localTitle: 'Chơi trên máy này',
-        localCopy: 'Một mình đua cùng hai bot, hoặc hai người chung bàn phím.',
-        localHint: 'P1 <kbd>←</kbd> <kbd>→</kbd> lái · <kbd>↑</kbd> nhảy &nbsp;·&nbsp; P2 <kbd>A</kbd> <kbd>D</kbd> · <kbd>W</kbd>',
+        localCopy: 'Một mình đua cùng hai bot, hoặc tối đa ba người chung bàn phím.',
+        localHint: 'P1 <kbd>←</kbd> <kbd>→</kbd> lái · <kbd>↑</kbd> nhảy &nbsp;·&nbsp; P2 <kbd>A</kbd> <kbd>D</kbd> · <kbd>W</kbd> &nbsp;·&nbsp; P3 <kbd>J</kbd> <kbd>L</kbd> · <kbd>I</kbd>',
+        players: meta.players,
       })}
 
       <section class="modal-overlay is-hidden" data-end-overlay>

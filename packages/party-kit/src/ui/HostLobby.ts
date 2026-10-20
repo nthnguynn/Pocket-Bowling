@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
-import { escapeHtml, initials, MAX_PLAYERS } from '../game/players';
-import type { PartyState } from '../types';
+import { arcadeUrl } from '../links';
+import { escapeHtml, initials } from '../players';
+import type { PartyState, PlayerLimits } from '../types';
 
 export interface LobbyCopy {
   eyebrow: string;
@@ -8,12 +9,17 @@ export interface LobbyCopy {
   localCopy: string;
   /** HTML tin cậy (do code viết sẵn), ví dụ có thẻ <kbd>. */
   localHint: string;
+  players: PlayerLimits;
+  /** HTML tin cậy riêng của từng game, đặt dưới hai cột (ví dụ chọn màn). */
+  extraHtml?: string;
 }
 
-export function controllerUrl(room: string, game: string): string {
+const LOCAL_LABELS = ['MỘT MÌNH', 'HAI NGƯỜI', 'BA NGƯỜI', 'BỐN NGƯỜI'];
+
+/** Mỗi game là một site riêng nên trang tay cầm nằm ngay trên site này, chỉ thêm ?controller=1&room=…. */
+export function controllerUrl(room: string): string {
   const url = new URL(location.href);
   url.search = '';
-  url.searchParams.set('game', game);
   url.searchParams.set('controller', '1');
   url.searchParams.set('room', room);
   return url.toString();
@@ -24,7 +30,7 @@ export function controllerUrl(room: string, game: string): string {
  * Dùng chung cho mọi game; game chỉ quyết định chuyện gì xảy ra khi bấm bắt đầu.
  */
 export class HostLobby {
-  constructor(private readonly root: HTMLElement, private readonly game: string) {}
+  constructor(private readonly root: HTMLElement) {}
 
   static overlayHtml(copy: LobbyCopy): string {
     return `<section class="modal-overlay lobby-overlay" data-start-overlay>
@@ -49,7 +55,7 @@ export class HostLobby {
                 <p class="panel-copy" data-room-status>Đang tạo phòng…</p>
               </div>
             </div>
-            <div class="lobby-roster-head"><b>Người chơi</b><span data-party-count>0/${MAX_PLAYERS}</span></div>
+            <div class="lobby-roster-head"><b>Người chơi</b><span data-party-count>0/${copy.players.max}</span></div>
             <ul class="party-roster" data-party-roster></ul>
             <button class="primary-button lobby-start" data-party-start disabled>CHỜ NGƯỜI CHƠI QUÉT MÃ…</button>
             <small class="lobby-hint" data-party-hint></small>
@@ -58,11 +64,12 @@ export class HostLobby {
             <span class="eyebrow">KHÔNG CẦN ĐIỆN THOẠI</span>
             <h2 id="lobby-local-title">${copy.localTitle}</h2>
             <p>${copy.localCopy}</p>
-            <div class="mode-grid"><button data-players="1"><strong>01</strong><span>MỘT MÌNH</span></button><button data-players="2"><strong>02</strong><span>HAI NGƯỜI</span></button></div>
+            <div class="mode-grid">${copy.players.local.map((count) => `<button data-players="${count}"><strong>${String(count).padStart(2, '0')}</strong><span>${LOCAL_LABELS[count - 1] ?? `${count} NGƯỜI`}</span></button>`).join('')}</div>
             <small>${copy.localHint}</small>
           </section>
         </div>
-        <a class="mode-back" href="./">← VỀ KHO GAME</a>
+        ${copy.extraHtml ?? ''}
+        <a class="mode-back" href="${arcadeUrl()}">← VỀ KHO GAME</a>
       </div>
     </section>`;
   }
@@ -86,7 +93,7 @@ export class HostLobby {
     this.all('[data-room-status]').forEach((element) => {
       element.textContent = `Hoặc mở ${location.host} trên điện thoại và nhập mã. Phòng mở khi tab này còn mở.`;
     });
-    const url = controllerUrl(room, this.game);
+    const url = controllerUrl(room);
     this.all<HTMLCanvasElement>('[data-qr]').forEach((canvas) => {
       const width = Number(canvas.dataset.qrSize) || 220;
       void QRCode.toCanvas(canvas, url, { width, margin: 1, color: { dark: '#07111f', light: '#ffffff' } });

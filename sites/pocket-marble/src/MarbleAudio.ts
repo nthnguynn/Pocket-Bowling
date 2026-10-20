@@ -17,6 +17,7 @@ export class MarbleAudio {
     if (type === 'bump') this.tone(120, 0.14, 'triangle', 0.09, 60);
     if (type === 'boost') this.tone(400, 0.3, 'sawtooth', 0.03, 1000);
     if (type === 'drop') this.tone(260, 0.35, 'square', 0.03, 130);
+    if (type === 'out') [440, 330, 220].forEach((frequency, index) => this.tone(frequency, 0.22, 'sawtooth', 0.04, frequency * 0.9, index * 0.16));
     if (type === 'finish') [660, 880, 1100, 1320].forEach((frequency, index) => this.tone(frequency, 0.16, 'triangle', 0.05, frequency, index * 0.09));
   }
 
