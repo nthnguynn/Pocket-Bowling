@@ -1,0 +1,32 @@
+{
+  "name": "pocket-bowling",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n WEB,SIGNAL -c cyan,magenta \"vite --host 0.0.0.0\" \"tsx watch server/signaling.ts\"",
+    "dev:web": "vite --host 0.0.0.0",
+    "dev:signal": "tsx watch server/signaling.ts",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.17.3",
+    "qrcode": "^1.5.4",
+    "three": "^0.180.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/qrcode": "^1.5.5",
+    "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "vitest": "^5.0.5"
+  }
+}
