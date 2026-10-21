@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
     : undefined;
   return {
     envDir,
+    // Đường dẫn tương đối: site chạy được ở gốc tên miền lẫn dưới /<game>/ (xem infra/deploy/Caddyfile).
+    base: './',
     server: { host: true, port: PORT, strictPort: true, https },
     preview: { host: true, port: PORT + 1000, https },
     build: { target: 'es2022', sourcemap: true },

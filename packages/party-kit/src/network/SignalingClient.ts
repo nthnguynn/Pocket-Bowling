@@ -4,7 +4,8 @@ export function defaultSignalingUrl(): string {
   const configured = import.meta.env.VITE_SIGNALING_URL as string | undefined;
   if (configured) return configured;
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${location.hostname}:8787`;
+  // Dev: signaling chạy riêng ở cổng 8787. Bản build chạy sau server production (serve.ts): cùng địa chỉ, đường dẫn /ws.
+  return import.meta.env.DEV ? `${protocol}//${location.hostname}:8787` : `${protocol}//${location.host}/ws`;
 }
 
 export class SignalingClient {

@@ -9,7 +9,7 @@
     "./styles.css": "./src/styles/party.css"
   },
   "scripts": {
-    "signal": "tsx watch server/signaling.ts",
+    "signal": "tsx watch --env-file-if-exists=../../.env server/signaling.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

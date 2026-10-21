@@ -10,10 +10,15 @@ import type { PlayerLimits, SiteMeta } from '@pocket/party-kit';
  */
 export const GAMES: SiteMeta[] = [roll, sumo, bowling, marble];
 
-/** Địa chỉ site của một game: VITE_SITE_<ID>_URL khi deploy, còn khi dev là cùng máy, cổng dev của site đó. */
+/**
+ * Địa chỉ site của một game. Dev: cùng máy, cổng dev của site đó. Bản build: '/<id>/' trên cùng tên miền
+ * (khớp server production). Deploy mỗi site một tên miền thì đặt VITE_SITE_<ID>_URL.
+ */
 export function siteUrl(game: SiteMeta): string {
   const env = import.meta.env as Record<string, string | undefined>;
-  return env[`VITE_SITE_${game.id.toUpperCase()}_URL`] || `${location.protocol}//${location.hostname}:${game.devPort}/`;
+  const configured = env[`VITE_SITE_${game.id.toUpperCase()}_URL`];
+  if (configured) return configured;
+  return import.meta.env.DEV ? `${location.protocol}//${location.hostname}:${game.devPort}/` : new URL(`/${game.id}/`, location.href).href;
 }
 
 export function playerCountLabel(limits: PlayerLimits): string {

@@ -29,7 +29,7 @@ Luật ranh giới (có test `tests/boundaries.test.ts` canh, vi phạm là `npm
 
 ## Chạy nhanh
 
-Yêu cầu: Node.js 20+ và npm. Mọi lệnh chạy ở gốc repo (npm workspaces).
+Yêu cầu: Node.js 22+ và npm. Mọi lệnh chạy ở gốc repo (npm workspaces).
 
 ```bash
 npm install
@@ -48,7 +48,34 @@ npm run build          # typecheck + build từng site vào sites/*/dist
 | Roll | `http://localhost:5177` | |
 | Signaling | `ws://localhost:8787` | một server dùng chung cho mọi game |
 
-Khi deploy mỗi site lên tên miền/đường dẫn riêng, đặt trong `.env` ở gốc: `VITE_ARCADE_URL` (link "Về kho game" của mọi game) và `VITE_SITE_<ID>_URL` (ví dụ `VITE_SITE_SUMO_URL`) để kho game trỏ đúng.
+Chỉ khi deploy mỗi site lên một tên miền riêng (không dùng server một cổng bên dưới) mới cần đặt trong `.env` ở gốc: `VITE_ARCADE_URL` (link "Về kho game" của mọi game) và `VITE_SITE_<ID>_URL` (ví dụ `VITE_SITE_SUMO_URL`) để kho game trỏ đúng.
+
+## Chạy trên server (một cổng: 3003)
+
+Production dùng một tiến trình Node (`packages/party-kit/server/serve.ts`) phục vụ mọi thứ trên **một cổng**, mặc định `3003`:
+
+| Đường dẫn | Nội dung |
+| --- | --- |
+| `/` | kho game |
+| `/bowling/`, `/marble/`, `/sumo/`, `/roll/` | từng game (`sites/pocket-<id>/dist`, tự phát hiện site đã build) |
+| `/ws` | signaling WebSocket |
+| `/healthz` | kiểm tra server còn sống (JSON) |
+
+Bản build tự dùng cùng địa chỉ cho signaling (`/ws`) và cho link giữa các site, nên không cần khai báo tên miền khi build.
+
+```bash
+git pull
+npm ci
+npm run build          # build mọi site vào sites/*/dist
+npm run serve          # http://localhost:3003
+```
+
+- Đổi cổng/địa chỉ bằng `PORT`, `HOST` (trong `.env` hoặc biến môi trường). `HOST=127.0.0.1` để chỉ reverse proxy trên cùng máy truy cập được.
+- Giữ chạy nền: `pm2 start npm --name pocket-arcade -- run serve && pm2 save && pm2 startup`, hoặc systemd theo mẫu `infra/deploy/pocket-arcade.service`.
+- Ra Internet: trỏ reverse proxy có HTTPS (nginx, Caddy, Cloudflare Tunnel…) vào `http://localhost:3003`. Proxy **phải chuyển tiếp WebSocket** cho `/ws`; mẫu nginx ở `infra/deploy/nginx.conf.example`.
+- HTTPS bắt buộc nếu muốn điện thoại dùng cảm biến nghiêng/chuyển động. Mở qua `http://` thường vẫn chơi được bằng nút bấm.
+- Cập nhật bản mới: `git pull && npm ci && npm run build && pm2 restart pocket-arcade` (hoặc `sudo systemctl restart pocket-arcade`).
+- Mọi người cùng Wi-Fi với TV thì không cần TURN. Điện thoại dùng 4G mà không vào được (TV báo WebRTC thất bại) thì cài TURN theo phần bên dưới.
 
 ### Thêm game mới
 
@@ -164,7 +191,7 @@ Khởi động lại `npm run dev`, mở `https://192.168.1.20:5173` (kho game) 
 
 ### Thử qua Internet
 
-1. Đặt web + signaling sau hostname/certificate công khai. Không dùng mixed content (`https` + `ws`).
+1. Đặt web + signaling sau hostname/certificate công khai (xem "Chạy trên server"). Không dùng mixed content (`https` + `ws`).
 2. Chạy Coturn trên máy có IP public. Mở UDP/TCP `3478`, TCP `5349` nếu dùng TURN/TLS, và dải relay (ví dụ `49160–49200` UDP/TCP).
 3. Nếu Coturn sau NAT, đặt `external-ip=PUBLIC/PRIVATE` và forward đủ cổng.
 4. Không nhúng TURN secret vào frontend. `server/signaling.ts` dùng `TURN_SECRET` để tạo username/credential HMAC-SHA1 hết hạn sau một giờ.
