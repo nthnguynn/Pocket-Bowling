@@ -233,7 +233,7 @@ export class PhoneApp {
 
   private template(): string {
     return `<main class="phone-shell" data-phone-shell data-stage="offline">
-      ${PhoneConnection.headerHtml('CONTROLLER', '<div class="brand-ball"><i></i><i></i><i></i></div>')}
+      ${PhoneConnection.headerHtml('BOWLING', '<div class="brand-ball"><i></i><i></i><i></i></div>')}
 
       <section class="phone-game-state"><span data-remote-frame>FRAME —</span><strong data-remote-player>—</strong><p data-remote-message>Kết nối với màn hình chính để bắt đầu.</p></section>
 

@@ -1,4 +1,4 @@
-# Pocket Roll
+# Roll
 
 Lấy cảm hứng từ *Give Me Toilet Paper!*: điện thoại là tấm bìa, nghiêng để lăn cuộn giấy qua từng màn tới nhà vệ sinh. 10 màn khó dần, 1–8 người (`src/meta.ts`).
 

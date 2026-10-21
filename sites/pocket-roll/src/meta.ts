@@ -3,7 +3,7 @@ import type { SiteMeta } from '@pocket/party-kit';
 /** Thông tin game này cho trang kho game, và giới hạn số người chơi mà chính game dùng. */
 export const meta: SiteMeta = {
   id: 'roll',
-  title: 'Pocket Roll',
+  title: 'Roll',
   eyebrow: 'BALANCE PUZZLE',
   description: 'Lấy cảm hứng từ Give Me Toilet Paper!: điện thoại là tấm bìa, nghiêng để lăn cuộn giấy qua cưa, bập bênh, quạt gió tới nhà vệ sinh. 10 màn khó dần, cả nhóm đua giao giấy.',
   tags: ['Nghiêng điện thoại', '10 màn'],

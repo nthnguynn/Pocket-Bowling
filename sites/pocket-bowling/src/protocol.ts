@@ -1,7 +1,7 @@
 import { clamp, finite, validSeq, type CommandParser } from '@pocket/party-kit';
 import type { ThrowInput } from './types';
 
-/** Lệnh riêng của Pocket Bowling từ điện thoại người đang tới lượt. */
+/** Lệnh riêng của Bowling từ điện thoại người đang tới lượt. */
 export interface ThrowCommand extends ThrowInput {
   type: 'throw';
   seq: string;

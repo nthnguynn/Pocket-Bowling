@@ -1,6 +1,6 @@
 import { validSeq, type CommandParser } from '@pocket/party-kit';
 
-/** Lệnh riêng của Pocket Roll: nhảy (hất điện thoại lên, hoặc nút NHẢY khi không có cảm biến). Độ nghiêng đi qua kênh telemetry, không phải lệnh. */
+/** Lệnh riêng của Roll: nhảy (hất điện thoại lên, hoặc nút NHẢY khi không có cảm biến). Độ nghiêng đi qua kênh telemetry, không phải lệnh. */
 export type RollCommand = { type: 'jump'; seq: string };
 
 export const parseRollCommand: CommandParser<RollCommand> = (data) =>

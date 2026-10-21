@@ -7,13 +7,14 @@ import { meta } from './meta';
 import { parseRollCommand, type BuzzKind, type RollBuzz, type RollCommand } from './protocol';
 import { RollAudio } from './RollAudio';
 import { RollMatch, type MatchEvent, type RollerSetup } from './RollMatch';
-import { RollRenderer } from './RollRenderer';
+import { RollRenderer, type RollViewMode } from './RollRenderer';
 
 const BROADCAST_MS = 120;
 /** Không nhận độ nghiêng mới quá lâu (điện thoại khóa màn hình) thì coi như cầm thẳng. */
 const STALE_INPUT_MS = 600;
 const LEVEL_KEY = 'pocket-roll-level';
 const CLEARED_KEY = 'pocket-roll-cleared';
+const VIEW_KEY = 'pocket-roll-view';
 /** Chiều rộng sảnh chờ thu gọn bên trái (khớp CSS .is-docked .lobby-card). */
 const DOCKED_LOBBY_WIDTH = 470;
 
@@ -22,6 +23,25 @@ const KEYMAP: Array<{ left: string; right: string; jump: string[] }> = [
   { left: 'ArrowLeft', right: 'ArrowRight', jump: ['ArrowUp', 'Space'] },
   { left: 'KeyA', right: 'KeyD', jump: ['KeyW'] },
 ];
+
+/** Chế độ hiển thị TV chọn; 'auto' quyết theo số người lúc vào trận. */
+type ViewSetting = 'auto' | RollViewMode;
+
+const VIEW_OPTIONS: Array<{ id: ViewSetting; label: string; hint: string }> = [
+  { id: 'auto', label: 'Tự động', hint: '2 người thì mỗi người một sân, đông hơn thì chung một sân.' },
+  { id: 'shared', label: 'Sân chung', hint: 'Mọi người chung một khung, thấy và va vào nhau.' },
+  { id: 'split', label: 'Chia màn hình', hint: 'Mỗi người một khung bám theo mình, vẫn thấy người khác.' },
+  { id: 'solo', label: 'Mỗi người một sân', hint: 'Mỗi khung chỉ có mình bạn: không va nhau, bập bênh riêng.' },
+];
+
+function loadView(): ViewSetting {
+  try {
+    const value = localStorage.getItem(VIEW_KEY);
+    return VIEW_OPTIONS.some((option) => option.id === value) ? value as ViewSetting : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
 
 function loadNumber(key: string, fallback: number): number {
   try {
@@ -49,6 +69,7 @@ export class RollApp {
   private readonly audio = new RollAudio();
   private match: RollMatch | null = null;
   private selectedLevel = Math.min(LEVELS.length - 1, loadNumber(LEVEL_KEY, 0));
+  private viewSetting = loadView();
   private readonly cleared = loadCleared();
   /** Sàn khởi động ở sảnh: ai quét mã là có cuộn giấy lăn thử ngay màn đang chọn. */
   private readonly practice = new RollMatch([], { practice: true, level: this.selectedLevel });
@@ -66,7 +87,7 @@ export class RollApp {
   private readonly touching = new Map<string, boolean>();
 
   constructor(private readonly root: HTMLElement) {
-    document.title = 'Pocket Roll';
+    document.title = 'Roll';
     this.root.innerHTML = this.template();
     this.lobby = new HostLobby(this.root);
     this.renderer = new RollRenderer(this.query('[data-roll-stage]'));
@@ -74,6 +95,7 @@ export class RollApp {
     onThemeChange((theme) => this.renderer.setTheme(theme));
     this.bindUi();
     this.renderLevelPicker();
+    this.renderViewPicker();
     this.syncPractice();
     this.renderParty();
     this.layout();
@@ -94,6 +116,14 @@ export class RollApp {
     });
     this.root.querySelectorAll<HTMLButtonElement>('[data-open-lobby]').forEach((button) => {
       button.addEventListener('click', () => this.openLobby());
+    });
+    this.query('[data-view-options]').addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-view]');
+      if (button) this.selectView(button.dataset.view as ViewSetting);
+    });
+    this.query<HTMLButtonElement>('[data-view-cycle]').addEventListener('click', () => {
+      const index = VIEW_OPTIONS.findIndex((option) => option.id === this.viewSetting);
+      this.selectView(VIEW_OPTIONS[(index + 1) % VIEW_OPTIONS.length]!.id);
     });
     this.root.querySelectorAll<HTMLButtonElement>('[data-level-action]').forEach((button) => {
       button.addEventListener('click', () => this.levelAction(button.dataset.levelAction as 'next' | 'retry' | 'again'));
@@ -138,6 +168,35 @@ export class RollApp {
       <b>${index + 1}</b><span>${escapeHtml(level.name)}</span>
     </button>`).join('');
     this.query('[data-level-picked]').textContent = `Màn ${this.selectedLevel + 1} · ${LEVELS[this.selectedLevel]!.name}`;
+  }
+
+  private selectView(setting: ViewSetting): void {
+    this.viewSetting = setting;
+    try {
+      localStorage.setItem(VIEW_KEY, setting);
+    } catch {
+      // Chỉ mất việc nhớ lựa chọn cho lần sau.
+    }
+    this.renderViewPicker();
+  }
+
+  private renderViewPicker(): void {
+    const selected = VIEW_OPTIONS.find((option) => option.id === this.viewSetting)!;
+    this.root.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((button) => {
+      const active = button.dataset.view === selected.id;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    this.query('[data-view-hint]').textContent = selected.hint;
+    this.query('[data-view-cycle]').textContent = `Hiển thị: ${selected.label}`;
+  }
+
+  /** Chế độ thực sự dùng: sàn khởi động ở sảnh luôn là sân chung; chia màn hình cần từ hai người chơi thật. */
+  private viewFor(match: RollMatch): RollViewMode {
+    if (match.practice) return 'shared';
+    const humans = match.rollers.filter((roller) => !roller.bot).length;
+    if (this.viewSetting === 'auto') return humans === 2 ? 'solo' : 'shared';
+    return humans >= 2 ? this.viewSetting : 'shared';
   }
 
   private startLocal(count: number): void {
@@ -210,6 +269,11 @@ export class RollApp {
     const elapsed = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
     const active = this.active;
+    const view = this.viewFor(active);
+    active.setSeparate(view === 'solo');
+    this.renderer.setViewMode(view);
+    // Chia màn hình thì mỗi khung có nhãn riêng: ẩn dải người chơi dưới đáy cho khung cao hơn.
+    this.query('[data-roller-roster]').classList.toggle('is-split', view !== 'shared');
     this.applyInputs(active, now, elapsed);
     active.advance(elapsed).forEach((event) => this.handleEvent(active, event, now));
     this.renderer.render(active, now, elapsed);
@@ -467,7 +531,7 @@ export class RollApp {
     return `<main class="desktop-shell roll-shell">
       <section class="play-stage" data-roll-stage aria-label="Màn chơi cuộn giấy"></section>
       <header class="topbar">
-        <div class="brand-lockup"><div class="brand-roll" aria-hidden="true"><i></i></div><div><strong>POCKET</strong><span>ROLL</span></div></div>
+        <div class="brand-lockup"><div class="brand-roll" aria-hidden="true"><i></i></div><div><strong>ROLL</strong><span>BALANCE PUZZLE</span></div></div>
         <div class="game-readout"><span>CHO XIN CUỘN GIẤY!</span><strong data-readout>Lăn thử</strong><small data-readout-hint>Nghiêng để lăn · hất máy để nhảy</small></div>
         <div class="top-actions">
           <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
@@ -481,7 +545,7 @@ export class RollApp {
       <ol class="player-strip is-hidden" data-roller-roster aria-label="Người chơi"></ol>
       <div class="warmup-hint" aria-hidden="true"><b>LĂN THỬ</b><span>Quét mã là cuộn giấy của bạn xuất hiện — nghiêng điện thoại để lăn tới nhà vệ sinh.</span></div>
 
-      <nav class="settings-strip glass"><button data-sound>Âm thanh: Bật</button></nav>
+      <nav class="settings-strip glass"><button data-view-cycle>Hiển thị: Tự động</button><button data-sound>Âm thanh: Bật</button></nav>
 
       ${HostLobby.panelHtml()}
 
@@ -489,11 +553,16 @@ export class RollApp {
         eyebrow: 'GIAO GIẤY · PARTY',
         localTitle: 'Chơi trên máy này',
         localCopy: 'Một mình vượt từng màn, hoặc hai người chung bàn phím đua nhau giao giấy.',
-        localHint: 'P1 <kbd>←</kbd> <kbd>→</kbd> nghiêng · <kbd>↑</kbd> nhảy &nbsp;·&nbsp; P2 <kbd>A</kbd> <kbd>D</kbd> · <kbd>W</kbd>',
+        localHint: '<span class="key-hint"><b>P1</b><kbd>←</kbd><kbd>→</kbd> nghiêng <kbd>↑</kbd> nhảy</span><span class="key-hint"><b>P2</b><kbd>A</kbd><kbd>D</kbd> nghiêng <kbd>W</kbd> nhảy</span>',
         players: meta.players,
         extraHtml: `<section class="level-picker" aria-labelledby="level-picker-title">
           <div class="level-picker-head"><b id="level-picker-title">Bắt đầu từ màn</b><span data-level-picked></span></div>
           <div class="level-grid" data-level-grid></div>
+        </section>
+        <section class="level-picker view-picker" aria-labelledby="view-picker-title">
+          <div class="level-picker-head"><b id="view-picker-title">Hiển thị</b></div>
+          <div class="view-options" data-view-options>${VIEW_OPTIONS.map((option) => `<button type="button" data-view="${option.id}">${option.label}</button>`).join('')}</div>
+          <p class="view-hint" data-view-hint></p>
         </section>`,
       })}
 

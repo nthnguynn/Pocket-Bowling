@@ -85,6 +85,9 @@ export class RollMatch {
   private phaseTimer = 0;
   private lastTick = 0;
   private accumulator = 0;
+  /** Mỗi người một sân: mỗi cuộn giấy lăn trong bản thế giới riêng (bập bênh riêng) và không va vào nhau. */
+  private separate = false;
+  private readonly ownWorlds = new Map<string, WorldState>();
 
   constructor(players: RollerSetup[], options: { level?: number; practice?: boolean } = {}) {
     this.levelIndex = Math.max(0, Math.min(LEVELS.length - 1, options.level ?? 0));
@@ -139,6 +142,7 @@ export class RollMatch {
     if (!this.practice) return;
     this.levelIndex = Math.max(0, Math.min(LEVELS.length - 1, index));
     this.world = createWorld(this.level);
+    this.ownWorlds.clear();
     this.rollers.forEach((roller) => this.resetRoller(roller, true));
   }
 
@@ -152,6 +156,28 @@ export class RollMatch {
     if (!roller || roller.bot || roller.roll.status !== 'rolling') return false;
     queueJump(roller.roll);
     return true;
+  }
+
+  get isSeparate(): boolean {
+    return this.separate;
+  }
+
+  /** Bật/tắt "mỗi người một sân". Đổi giữa chừng thì sân riêng bắt đầu từ trạng thái hiện tại của sân chung. */
+  setSeparate(separate: boolean): void {
+    if (separate === this.separate) return;
+    this.separate = separate;
+    this.ownWorlds.clear();
+  }
+
+  /** Thế giới mà cuộn giấy này đang lăn trong đó (sân chung, hoặc sân riêng khi mỗi người một sân). */
+  worldFor(roller: Roller): WorldState {
+    if (!this.separate) return this.world;
+    let world = this.ownWorlds.get(roller.key);
+    if (!world) {
+      world = { level: this.world.level, time: this.world.time, seesaws: this.world.seesaws.map((seesaw) => ({ ...seesaw })) };
+      this.ownWorlds.set(roller.key, world);
+    }
+    return world;
   }
 
   touch(key: string): void {
@@ -214,7 +240,15 @@ export class RollMatch {
 
   private stepPhysics(dt: number, events: MatchEvent[]): void {
     const rolls = this.rollers.map((roller) => roller.roll);
-    stepWorld(this.world, rolls, dt);
+    if (this.separate) {
+      // Lấy (hoặc tạo) sân riêng trước khi sân chung tiến bước, để sân mới tạo sao chép đúng đồng hồ hiện tại.
+      const worlds = this.rollers.map((roller) => this.worldFor(roller));
+      // Sân chung vẫn chạy để giữ đồng hồ (cưa, bục trôi) khớp nhau giữa mọi sân riêng.
+      stepWorld(this.world, [], dt);
+      this.rollers.forEach((roller, index) => stepWorld(worlds[index]!, [roller.roll], dt));
+    } else {
+      stepWorld(this.world, rolls, dt);
+    }
     this.rollers.forEach((roller, index) => {
       let tilt = roller.tilt;
       if (roller.bot) {
@@ -223,13 +257,14 @@ export class RollMatch {
         if (input.jump) queueJump(roller.roll);
       }
       const rollEvents: RollEvent[] = [];
-      stepRoll(roller.roll, this.phase === 'levelEnd' ? 0 : tilt, this.world, dt, rollEvents);
+      stepRoll(roller.roll, this.phase === 'levelEnd' ? 0 : tilt, this.worldFor(roller), dt, rollEvents);
       rollEvents.forEach((event) => {
         if (event.type === 'die' && !this.practice) roller.totalDeaths += 1;
         if (event.type === 'goal' && !this.practice) this.award(roller);
         events.push({ roller: index, event });
       });
     });
+    if (this.separate) return;
     const bumps: Array<{ index: number; event: RollEvent }> = [];
     collideRolls(rolls, bumps);
     bumps.forEach(({ index, event }) => events.push({ roller: index, event }));
@@ -270,6 +305,7 @@ export class RollMatch {
   startLevel(index: number): void {
     this.levelIndex = Math.max(0, Math.min(LEVELS.length - 1, index));
     this.world = createWorld(this.level);
+    this.ownWorlds.clear();
     this.phase = 'countdown';
     this.clock = -COUNTDOWN_SECONDS;
     this.lastTick = 0;

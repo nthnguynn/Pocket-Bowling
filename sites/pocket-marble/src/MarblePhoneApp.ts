@@ -1,19 +1,44 @@
-import { escapeHtml, initials, PhoneConnection, sequence, TiltController, uiIcon, type PartyState, type Seat } from '@pocket/party-kit';
+import { escapeHtml, FlickDetector, initials, PhoneConnection, sequence, TiltController, uiIcon, type PartyState, type Seat } from '@pocket/party-kit';
 import { LIVES, type RaceView } from './MarbleRace';
 import { formatSeconds } from './MarbleRenderer';
 import { stepTray, type TrayState } from './physics';
-import type { MarbleCommand } from './protocol';
+import type { MarbleBuzz, MarbleBuzzKind, MarbleCommand } from './protocol';
 
 const SEND_INTERVAL_MS = 33;
+/** Bi trong khay lệch quá mức này thì rung nhẹ một cái để kịp nghiêng lại. */
+const DANGER_LEVEL = 0.75;
+
+const VIBRATION: Record<MarbleBuzzKind, number | number[]> = {
+  gem: 12,
+  bump: 45,
+  boost: [20, 30, 20],
+  fall: [120, 60, 120],
+  drop: [90, 40, 90, 40, 90],
+  finish: [60, 40, 60, 40, 180],
+  out: [300, 80, 300],
+};
+
+const TOASTS: Record<MarbleBuzzKind, string> = {
+  gem: '+♦',
+  bump: 'CỘP!',
+  boost: 'TĂNG TỐC!',
+  fall: 'RƠI HỐ!',
+  drop: 'RƠI BI!',
+  finish: 'VỀ ĐÍCH!',
+  out: 'BỊ LOẠI',
+};
 
 /**
- * Tay cầm Pocket Marble: điện thoại là "tấm bìa". Nghiêng trái/phải để lái viên bi trên TV,
- * chạm khay để nhảy. Viên bi trong khay là bản dự đoán cục bộ; rơi hay không do TV quyết định.
+ * Tay cầm Marble: điện thoại là "tấm bìa". Nghiêng trái/phải để lái viên bi trên TV, hất máy lên để nhảy.
+ * Viên bi trong khay là bản dự đoán cục bộ; rơi hay không do TV quyết định. Mọi sự kiện trên đường đua
+ * (ngọc, va, rơi, về đích…) rung điện thoại ngay lập tức, mỗi loại một kiểu.
  */
 export class MarblePhoneApp {
-  private readonly link: PhoneConnection<RaceView, never, MarbleCommand>;
+  private readonly link: PhoneConnection<RaceView, MarbleBuzz, MarbleCommand>;
   private readonly tilt = new TiltController();
-  private steer: 'tilt' | 'buttons' = 'buttons';
+  private readonly flick = new FlickDetector();
+  private steer: 'tilt' | 'buttons' = TiltController.supported() ? 'tilt' : 'buttons';
+  private dangerWarned = false;
   private held = { left: false, right: false };
   private buttonTilt = 0;
   private readonly tray: TrayState = { position: 0, velocity: 0 };
@@ -26,10 +51,14 @@ export class MarblePhoneApp {
   constructor(private readonly root: HTMLElement) {
     this.root.innerHTML = this.template();
     this.link = new PhoneConnection(this.query('[data-phone-shell]'));
-    this.link.onDispose = () => this.tilt.disable();
+    this.link.onDispose = () => {
+      this.tilt.disable();
+      this.flick.stop();
+    };
     this.bindNetwork();
     this.bindUi();
     this.link.start();
+    this.applySteer();
     requestAnimationFrame(this.frame);
   }
 
@@ -39,6 +68,7 @@ export class MarblePhoneApp {
 
   private bindNetwork(): void {
     this.network.onView = (view, party, seat) => this.render(view, party, seat);
+    this.network.onEvent = ({ kind }) => this.buzz(kind);
     this.network.onAck = (_seq, accepted, reason) => {
       if (!accepted && reason) this.query('[data-feedback]').textContent = reason;
     };
@@ -51,6 +81,7 @@ export class MarblePhoneApp {
     });
     this.tilt.onStatus = (message) => { this.query('[data-tilt-status]').textContent = message; };
     this.query<HTMLButtonElement>('[data-tilt-calibrate]').addEventListener('click', () => this.tilt.calibrate());
+    this.flick.onFlick = () => this.jump();
 
     const hold = (selector: string, side: 'left' | 'right') => {
       const button = this.query<HTMLButtonElement>(selector);
@@ -68,17 +99,25 @@ export class MarblePhoneApp {
     hold('[data-steer-left]', 'left');
     hold('[data-steer-right]', 'right');
 
-    const jump = (event: Event) => {
+    this.query('[data-tray]').addEventListener('pointerdown', (event) => {
       event.preventDefault();
-      if (!this.playing) return;
-      this.network.sendCommand({ type: 'jump', seq: sequence('jump') });
-      navigator.vibrate?.(15);
-      const tray = this.query('[data-tray]');
-      tray.classList.remove('is-jumping');
-      requestAnimationFrame(() => tray.classList.add('is-jumping'));
-    };
-    this.query('[data-tray]').addEventListener('pointerdown', jump);
-    this.query('[data-jump]').addEventListener('pointerdown', jump);
+      void this.link.requestWakeLock();
+      // Lần chạm đầu ở chế độ nghiêng: bật cảm biến (iPhone cần thao tác của người dùng mới hỏi quyền).
+      if (this.steer === 'tilt' && !this.tilt.enabled) {
+        void this.setSteer('tilt');
+        return;
+      }
+      // Chế độ nghiêng nhảy bằng cú hất; chạm khay chỉ còn là dự phòng khi máy không gửi dữ liệu gia tốc.
+      if (this.steer === 'tilt' && this.flick.receiving) {
+        this.toast('HẤT MÁY LÊN ĐỂ NHẢY', 'hint');
+        return;
+      }
+      this.jump();
+    });
+    this.query('[data-jump]').addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      this.jump();
+    });
 
     if (!TiltController.supported()) {
       this.query('[data-tilt-status]').textContent = window.isSecureContext
@@ -87,16 +126,60 @@ export class MarblePhoneApp {
     }
   }
 
+  private jump(): void {
+    if (!this.playing) return;
+    this.network.sendCommand({ type: 'jump', seq: sequence('jump') });
+    vibrate(15);
+    const tray = this.query('[data-tray]');
+    tray.classList.remove('is-jumping');
+    requestAnimationFrame(() => tray.classList.add('is-jumping'));
+  }
+
   private async setSteer(mode: 'tilt' | 'buttons'): Promise<void> {
     if (mode === 'tilt' && !this.tilt.enabled) {
       void this.link.requestWakeLock();
-      if (!await this.tilt.enable()) return;
+      // Xin cả hai quyền trong cùng một lần chạm: iPhone chỉ hỏi quyền khi có thao tác của người dùng.
+      const [tiltReady, motionReady] = await Promise.all([this.tilt.enable(), FlickDetector.requestPermission()]);
+      if (!tiltReady) mode = 'buttons';
+      else if (motionReady) this.flick.start();
     }
-    if (mode === 'buttons') this.tilt.disable();
+    if (mode === 'buttons') {
+      this.tilt.disable();
+      this.flick.stop();
+    }
     this.steer = mode;
+    this.applySteer();
+  }
+
+  private applySteer(): void {
+    const mode = this.steer;
     this.root.querySelectorAll('[data-steer]').forEach((element) => element.classList.toggle('is-active', (element as HTMLElement).dataset.steer === mode));
     this.query('[data-tilt-panel]').classList.toggle('is-hidden', mode !== 'tilt');
     this.query('[data-button-panel]').classList.toggle('is-hidden', mode !== 'buttons');
+    const label = mode === 'tilt' && !this.tilt.enabled
+      ? 'CHẠM KHAY ĐỂ BẬT CẢM BIẾN'
+      : `${this.flicking ? 'HẤT MÁY LÊN' : 'CHẠM KHAY'} ĐỂ NHẢY · GIỮ BI ĐỪNG ĐỂ RƠI`;
+    this.query('[data-tray-label]').textContent = label;
+    this.query('[data-tray]').setAttribute('aria-label', label);
+  }
+
+  /** Đang nhảy bằng cú hất (nghiêng máy + có cảm biến gia tốc). */
+  private get flicking(): boolean {
+    return this.steer === 'tilt' && this.flick.active;
+  }
+
+  private buzz(kind: MarbleBuzzKind): void {
+    vibrate(VIBRATION[kind]);
+    this.toast(TOASTS[kind], kind);
+  }
+
+  private toast(text: string, kind: string): void {
+    const element = this.query('[data-tray-toast]');
+    element.textContent = text;
+    element.dataset.kind = kind;
+    element.classList.remove('is-active');
+    void element.offsetWidth;
+    element.classList.add('is-active');
   }
 
   private readonly frame = (now: number): void => {
@@ -109,6 +192,14 @@ export class MarblePhoneApp {
     if (this.playing) {
       // Dự đoán cục bộ cho mượt; chạm mép thì giữ ở mép chờ TV xác nhận rơi.
       if (stepTray(this.tray, tilt, elapsed)) this.tray.position = Math.sign(tilt) || 1;
+      // Rung báo trước một lần khi bi sắp lăn ra mép khay.
+      const danger = Math.abs(this.tray.position);
+      if (danger > DANGER_LEVEL && !this.dangerWarned) {
+        this.dangerWarned = true;
+        vibrate(25);
+      } else if (danger < DANGER_LEVEL * 0.6) {
+        this.dangerWarned = false;
+      }
       if (now - this.lastSent >= SEND_INTERVAL_MS) {
         this.lastSent = now;
         this.network.sendMotion({ tilt });
@@ -131,9 +222,8 @@ export class MarblePhoneApp {
     if (me) {
       if (me.lives < this.lastLives) {
         this.query('[data-feedback]').textContent = me.lives > 0
-          ? `Mất 1 mạng — còn ${me.lives} ♥. ${me.drops > this.lastDrops ? 'Đừng nghiêng gắt quá lâu.' : 'Nhớ chạm khay để nhảy qua hố.'}`
+          ? `Mất 1 mạng — còn ${me.lives} ♥. ${me.drops > this.lastDrops ? 'Đừng nghiêng gắt quá lâu.' : `Nhớ ${this.jumpHint} để nhảy qua hố.`}`
           : 'Hết mạng — bạn bị loại khỏi cuộc đua.';
-        navigator.vibrate?.(me.lives > 0 ? [120, 60, 120] : [300, 80, 300]);
       }
       if (me.drops > this.lastDrops) {
         this.tray.position = 0;
@@ -193,7 +283,7 @@ export class MarblePhoneApp {
       message.textContent = me.status === 'falling'
         ? 'Rơi hố rồi — đang đặt lại bi…'
         : me.stunned ? 'Choáng! Bi chậm lại một chút.'
-          : view.graceLeft !== null ? `Còn ${Math.ceil(view.graceLeft)} giây để về đích!` : 'Nghiêng để lái · chạm khay để nhảy qua hố.';
+          : view.graceLeft !== null ? `Còn ${Math.ceil(view.graceLeft)} giây để về đích!` : `Nghiêng để lái · ${this.jumpHint} để nhảy qua hố.`;
     }
   }
 
@@ -209,6 +299,10 @@ export class MarblePhoneApp {
     this.query('[data-phone-restart]').classList.toggle('is-hidden', !(view.phase === 'finished' && seat.leader));
   }
 
+  private get jumpHint(): string {
+    return this.flicking ? 'hất máy lên' : this.steer === 'tilt' ? 'chạm khay' : 'bấm NHẢY';
+  }
+
   private query<T extends Element = HTMLElement>(selector: string): T {
     const element = this.root.querySelector<T>(selector);
     if (!element) throw new Error(`Thiếu phần tử UI: ${selector}`);
@@ -222,15 +316,15 @@ export class MarblePhoneApp {
       <section class="phone-game-state"><span data-race-kicker>ĐƯỜNG ĐUA BI</span><strong data-race-title>—</strong><p data-race-message>Kết nối với màn hình chính để bắt đầu.</p></section>
 
       <div class="phone-play">
-        <div class="tray" data-tray role="button" aria-label="Chạm để nhảy">
-          <div class="tray-board"><span class="tray-edge"></span><i class="tray-marble" data-tray-marble></i><span class="tray-edge"></span></div>
-          <small>CHẠM KHAY ĐỂ NHẢY · GIỮ BI ĐỪNG ĐỂ RƠI</small>
+        <div class="tray" data-tray role="button" aria-label="Chạm khay để bật cảm biến">
+          <div class="tray-board"><span class="tray-edge"></span><i class="tray-marble" data-tray-marble></i><span class="tray-edge"></span><strong class="tray-toast" data-tray-toast aria-live="polite"></strong></div>
+          <small data-tray-label>CHẠM KHAY ĐỂ BẬT CẢM BIẾN</small>
         </div>
         <div class="tilt-meter" data-tilt-meter aria-hidden="true"><i></i></div>
 
         <nav class="mode-tabs"><button data-steer="tilt">NGHIÊNG MÁY</button><button class="is-active" data-steer="buttons">NÚT BẤM</button></nav>
         <section class="tilt-panel is-hidden" data-tilt-panel>
-          <p data-tilt-status>Bấm "Nghiêng máy" để bật cảm biến. iPhone sẽ hỏi quyền.</p>
+          <p data-tilt-status>Cầm máy như cầm khay: nghiêng trái/phải để lái, hất lên để nhảy. iPhone sẽ hỏi quyền cảm biến.</p>
           <div class="motion-actions"><button data-tilt-calibrate>ĐẶT LÀM MẶT PHẲNG</button></div>
         </section>
         <section class="steer-pad" data-button-panel>
@@ -246,7 +340,13 @@ export class MarblePhoneApp {
         <ol class="standings-list" data-standings-list></ol>
         <button class="primary-button phone-wide-button is-hidden" data-phone-restart>ĐUA LẠI</button>
       </section>
-      <footer class="phone-feedback" data-feedback>Độ nghiêng gửi 30 lần/giây qua kênh telemetry; lệnh nhảy qua kênh tin cậy.</footer>
+      <footer class="phone-feedback" data-feedback>Mỗi sự kiện trên đường đua đều rung điện thoại — mỗi loại một kiểu.</footer>
     </main>`;
   }
+}
+
+/** Trình duyệt chặn rung trước lần chạm đầu tiên vào trang; iPhone không hỗ trợ rung trên web. */
+function vibrate(pattern: number | number[]): void {
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+  navigator.vibrate?.(pattern);
 }

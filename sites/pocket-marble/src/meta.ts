@@ -3,7 +3,7 @@ import type { SiteMeta } from '@pocket/party-kit';
 /** Thông tin game này cho trang kho game, và giới hạn số người chơi mà chính game dùng. */
 export const meta: SiteMeta = {
   id: 'marble',
-  title: 'Pocket Marble',
+  title: 'Marble',
   eyebrow: 'PARTY RACE',
   description: 'Lấy cảm hứng từ Give Me Toilet Paper!: điện thoại là tấm khay, nghiêng để lái viên bi qua hố và chướng ngại. Mỗi người một làn, cùng đua trên TV.',
   tags: ['Nghiêng điện thoại', 'Có bot khi chơi một mình'],

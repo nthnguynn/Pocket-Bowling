@@ -1,6 +1,6 @@
-import type { ThemeMode } from '@pocket/party-kit';
+import { initials, type ThemeMode } from '@pocket/party-kit';
 import {
-  moverOffset, ROLL_RADIUS, sawPosition, seesawEnds, WORLD_HEIGHT, WORLD_WIDTH, type Point, type RollEvent,
+  moverOffset, ROLL_RADIUS, sawPosition, seesawEnds, WORLD_HEIGHT, WORLD_WIDTH, type Point, type RollEvent, type WorldState,
 } from './physics';
 import type { MatchEvent, Roller, RollMatch } from './RollMatch';
 
@@ -24,6 +24,8 @@ interface Palette {
   doorFrame: string;
   text: string;
   textSoft: string;
+  /** Nền nhãn người chơi trên khung chia màn hình. */
+  hud: string;
   paper: string;
   core: string;
 }
@@ -32,14 +34,14 @@ const LIGHT: Palette = {
   backdrop: '#f4ddea', wall: '#efe8de', wallLine: 'rgba(120,96,70,0.08)', track: 'rgba(120,96,70,0.3)', platform: '#7d7a80', platformTop: '#a9a6ad',
   shadow: 'rgba(60,40,30,0.16)', bouncy: '#3cc47c', mover: '#e8a33a', saw: '#b9c2cc', sawTooth: '#e8414f',
   water: 'rgba(70,160,230,0.55)', waterTop: '#9fd6ff', fan: '#8aa0b4', door: '#7fb8e8', doorFrame: '#4c7fae',
-  text: '#2d1426', textSoft: '#74586a', paper: '#ffffff', core: '#c9a27a',
+  text: '#2d1426', textSoft: '#74586a', hud: 'rgba(255,249,252,0.92)', paper: '#ffffff', core: '#c9a27a',
 };
 
 const DARK: Palette = {
   backdrop: '#130814', wall: '#2a1f2e', wallLine: 'rgba(255,220,240,0.05)', track: 'rgba(255,220,240,0.2)', platform: '#8c8597', platformTop: '#b9b2c4',
   shadow: 'rgba(0,0,0,0.35)', bouncy: '#58e39a', mover: '#ffb84c', saw: '#c9d1da', sawTooth: '#ff5a64',
   water: 'rgba(76,170,255,0.5)', waterTop: '#8fd0ff', fan: '#9fb2c6', door: '#5d8fc4', doorFrame: '#a7cdf0',
-  text: '#fff4fb', textSoft: '#c9a9bf', paper: '#fbf8f2', core: '#c9a27a',
+  text: '#fff4fb', textSoft: '#c9a9bf', hud: 'rgba(19,8,20,0.82)', paper: '#fbf8f2', core: '#c9a27a',
 };
 
 const TOP_MARGIN = 92;
@@ -48,10 +50,19 @@ const FONT = '"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Ar
 /** Chia đôi màn hình: mỗi nửa thấy khoảng ngần này đơn vị bề ngang của màn chơi (cả màn rộng WORLD_WIDTH). */
 const FOLLOW_WIDTH = 900;
 const SPLIT_GAP = 14;
+/** Khi chia màn hình, dải người chơi dưới đáy được ẩn (mỗi khung đã có nhãn riêng) nên khung cao hơn. */
+const SPLIT_BOTTOM_MARGIN = 58;
 
-interface Floater { x: number; y: number; text: string; color: string; born: number }
+/** `owner` là key người chơi gây ra hiệu ứng: ở chế độ mỗi người một sân, khung của ai chỉ thấy hiệu ứng của người đó. */
+interface Floater { x: number; y: number; text: string; color: string; born: number; owner: string | null }
 interface Camera { x: number; y: number }
-interface Particle { x: number; y: number; vx: number; vy: number; spin: number; born: number; life: number; color: string; size: number; gravity: number }
+interface Particle { x: number; y: number; vx: number; vy: number; spin: number; born: number; life: number; color: string; size: number; gravity: number; owner: string | null }
+
+/**
+ * shared: một khung chung cho mọi người. split: mỗi người một khung bám theo mình, vẫn thấy người khác.
+ * solo: mỗi người một khung chỉ có mình mình (sân riêng, xem RollMatch.setSeparate).
+ */
+export type RollViewMode = 'shared' | 'split' | 'solo';
 
 export class RollRenderer {
   readonly canvas = document.createElement('canvas');
@@ -67,8 +78,9 @@ export class RollRenderer {
   private particles: Particle[] = [];
   /** Phần bên trái bị sảnh chờ che; màn được căn giữa phần còn lại. */
   private inset = 0;
-  /** Camera của từng người khi chia đôi màn hình, theo key người chơi. */
+  /** Camera của từng người khi chia màn hình, theo key người chơi. */
   private cameras = new Map<string, Camera>();
+  private viewMode: RollViewMode = 'shared';
 
   constructor(private readonly container: HTMLElement) {
     this.canvas.className = 'roll-canvas';
@@ -80,6 +92,12 @@ export class RollRenderer {
 
   setTheme(theme: ThemeMode): void {
     this.palette = theme === 'light' ? LIGHT : DARK;
+  }
+
+  setViewMode(mode: RollViewMode): void {
+    if (mode === this.viewMode) return;
+    this.viewMode = mode;
+    this.cameras.clear();
   }
 
   setInset(left: number): void {
@@ -104,26 +122,26 @@ export class RollRenderer {
     if (event.type === 'die') {
       if (event.cause === 'saw') {
         // Giấy rách vụn bay tứ tung.
-        this.burst(x, y, 34, [this.palette.paper, '#f1ece4', roller.color], 420, now, 900);
-        this.floater(x, y - 30, 'XOẸT!', this.palette.sawTooth, now);
+        this.burst(x, y, 34, [this.palette.paper, '#f1ece4', roller.color], 420, now, 900, roller.key);
+        this.floater(x, y - 30, 'XOẸT!', this.palette.sawTooth, now, roller.key);
         this.shake = Math.max(this.shake, 0.3);
       } else if (event.cause === 'water') {
-        this.burst(x, y, 18, [this.palette.waterTop, '#ffffff'], 300, now, 700);
-        this.floater(x, y - 30, 'ƯỚT SŨNG!', this.palette.waterTop, now);
+        this.burst(x, y, 18, [this.palette.waterTop, '#ffffff'], 300, now, 700, roller.key);
+        this.floater(x, y - 30, 'ƯỚT SŨNG!', this.palette.waterTop, now, roller.key);
       } else {
-        this.floater(x, Math.min(WORLD_HEIGHT - 40, y), 'Á Á!', roller.color, now);
+        this.floater(x, Math.min(WORLD_HEIGHT - 40, y), 'Á Á!', roller.color, now, roller.key);
       }
     } else if (event.type === 'goal') {
-      this.burst(x, y, 40, [roller.color, '#ffc23d', '#ffffff', '#7fe7ff'], 360, now, 1_300);
-      this.floater(x, y - 50, 'GIAO XONG!', roller.color, now);
+      this.burst(x, y, 40, [roller.color, '#ffc23d', '#ffffff', '#7fe7ff'], 360, now, 1_300, roller.key);
+      this.floater(x, y - 50, 'GIAO XONG!', roller.color, now, roller.key);
     } else if (event.type === 'checkpoint') {
-      this.floater(x, y - 40, 'ĐÃ LƯU!', '#58e39a', now);
+      this.floater(x, y - 40, 'ĐÃ LƯU!', '#58e39a', now, roller.key);
     } else if (event.type === 'bounce') {
-      this.burst(x, y + ROLL_RADIUS, 8, [this.palette.bouncy], 160, now, 400);
+      this.burst(x, y + ROLL_RADIUS, 8, [this.palette.bouncy], 160, now, 400, roller.key);
     } else if (event.type === 'land' && event.strength > 0.5) {
-      this.burst(x, y + ROLL_RADIUS, 6, [this.palette.platformTop], 120, now, 380);
+      this.burst(x, y + ROLL_RADIUS, 6, [this.palette.platformTop], 120, now, 380, roller.key);
     } else if (event.type === 'respawn') {
-      this.burst(x, y, 10, [roller.color], 120, now, 420);
+      this.burst(x, y, 10, [roller.color], 120, now, 420, roller.key);
     }
   }
 
@@ -136,34 +154,39 @@ export class RollRenderer {
     ctx.fillStyle = p.backdrop;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // Đúng hai người chơi thật (sảnh chờ đã đóng): chia đôi màn hình, mỗi nửa một camera bám theo một người.
-    const humans = this.inset === 0 ? match.rollers.filter((roller) => !roller.bot) : [];
-    if (humans.length === 2) {
-      this.renderSplit(match, humans, now, elapsed);
+    // Chia màn hình khi đã vào trận (sảnh chờ đóng) và có từ hai người chơi thật.
+    const viewers = this.viewMode !== 'shared' && this.inset === 0 ? match.rollers.filter((roller) => !roller.bot) : [];
+    if (viewers.length >= 2) {
+      this.renderSplit(match, viewers, this.viewMode === 'solo', now, elapsed);
       return;
     }
     ctx.save();
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake * 16, (Math.random() - 0.5) * this.shake * 16);
     ctx.translate(this.originX, this.originY);
     ctx.scale(this.scale, this.scale);
-    this.drawScene(match, now);
+    this.drawScene(match, now, match.world, match.rollers, null, null);
     ctx.restore();
   }
 
-  private renderSplit(match: RollMatch, followed: Roller[], now: number, elapsed: number): void {
+  /** Mỗi người một khung: 2 người 2 cột, 3–4 người lưới 2×2, 5–6 người 3×2, 7–8 người 4×2. */
+  private renderSplit(match: RollMatch, viewers: Roller[], solo: boolean, now: number, elapsed: number): void {
     const ctx = this.context;
-    const top = TOP_MARGIN;
-    const height = Math.max(200, this.height - TOP_MARGIN - BOTTOM_MARGIN);
-    const width = Math.max(200, (this.width - 40 - SPLIT_GAP) / 2);
-    // Luôn thấy khoảng FOLLOW_WIDTH bề ngang; màn hình quá thấp thì thu nhỏ để vẫn thấy đủ trên dưới.
+    const count = viewers.length;
+    const columns = count <= 2 ? count : count <= 4 ? 2 : count <= 6 ? 3 : 4;
+    const rows = Math.ceil(count / columns);
+    const areaHeight = Math.max(200, this.height - TOP_MARGIN - SPLIT_BOTTOM_MARGIN);
+    const width = Math.max(160, (this.width - 40 - SPLIT_GAP * (columns - 1)) / columns);
+    const height = Math.max(120, (areaHeight - SPLIT_GAP * (rows - 1)) / rows);
+    // Luôn thấy khoảng FOLLOW_WIDTH bề ngang; khung quá thấp thì thu nhỏ để vẫn thấy đủ trên dưới.
     const scale = Math.max(width / WORLD_WIDTH, Math.min(width / FOLLOW_WIDTH, height / 640));
     const visibleW = width / scale;
     const visibleH = height / scale;
     const center = (value: number, visible: number, world: number) =>
       (visible >= world ? world / 2 : Math.max(visible / 2, Math.min(world - visible / 2, value)));
 
-    followed.forEach((roller, index) => {
-      const left = 20 + index * (width + SPLIT_GAP);
+    viewers.forEach((roller, index) => {
+      const left = 20 + (index % columns) * (width + SPLIT_GAP);
+      const top = TOP_MARGIN + Math.floor(index / columns) * (height + SPLIT_GAP);
       const target = { x: center(roller.roll.x, visibleW, WORLD_WIDTH), y: center(roller.roll.y, visibleH, WORLD_HEIGHT) };
       const previous = this.cameras.get(roller.key);
       // Bám mượt; sống lại ở cờ xa thì nhảy thẳng tới.
@@ -180,12 +203,16 @@ export class RollRenderer {
       ctx.translate(left + width / 2, top + height / 2);
       ctx.scale(scale, scale);
       ctx.translate(-camera.x, -camera.y);
-      this.drawScene(match, now);
+      // Khung của ai thì không cần thẻ tên trên cuộn giấy của người đó: nhãn khung đã ghi rồi.
+      if (solo) this.drawScene(match, now, match.worldFor(roller), [roller], roller.key, roller.key);
+      else this.drawScene(match, now, match.world, match.rollers, null, roller.key);
       ctx.restore();
 
-      followed.forEach((other) => {
-        if (other !== roller) this.drawOffscreenArrow(other, camera, scale, left, top, width, height);
-      });
+      if (!solo) {
+        viewers.forEach((other) => {
+          if (other !== roller) this.drawOffscreenArrow(other, camera, scale, left, top, width, height);
+        });
+      }
       this.drawViewFrame(roller, left, top, width, height);
     });
   }
@@ -219,34 +246,65 @@ export class RollRenderer {
     ctx.restore();
   }
 
+  /** Viền màu người chơi và một nhãn duy nhất: chữ cái đầu, tên, điểm và số lần chết (hoặc trạng thái). */
   private drawViewFrame(roller: Roller, left: number, top: number, width: number, height: number): void {
     const ctx = this.context;
+    const p = this.palette;
+    const roll = roller.roll;
     ctx.strokeStyle = roller.color;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.roundRect(left + 1.5, top + 1.5, width - 3, height - 3, 21);
     ctx.stroke();
-    ctx.font = `800 20px ${FONT}`;
-    const label = roller.name.toUpperCase();
-    const labelWidth = Math.min(width - 32, ctx.measureText(label).width + 28);
+
+    const status = roll.status === 'done' ? 'ĐÃ GIAO GIẤY' : roll.status === 'dead' ? 'RÁCH GIẤY!' : `${roller.points} điểm · chết ${roll.deaths}`;
+    ctx.font = `800 18px ${FONT}`;
+    const nameWidth = ctx.measureText(roller.name).width;
+    ctx.font = `600 12px ${FONT}`;
+    const statusWidth = ctx.measureText(status).width;
+    const x = left + 12;
+    const y = top + 12;
+    const pillWidth = Math.min(width - 24, 66 + Math.max(nameWidth, statusWidth));
+    ctx.fillStyle = p.hud;
+    ctx.beginPath();
+    ctx.roundRect(x, y, pillWidth, 48, 24);
+    ctx.fill();
+    ctx.strokeStyle = roller.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     ctx.fillStyle = roller.color;
     ctx.beginPath();
-    ctx.roundRect(left + 14, top + 12, labelWidth, 30, 15);
+    ctx.arc(x + 24, y + 24, 17, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#1a0a14';
+    ctx.font = `800 16px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials(roller.name), x + 24, y + 25);
+
     ctx.save();
     ctx.beginPath();
-    ctx.rect(left + 14, top + 12, labelWidth - 12, 30);
+    ctx.rect(x + 48, y, pillWidth - 60, 48);
     ctx.clip();
-    ctx.fillStyle = '#1a0a14';
-    ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText(label, left + 28, top + 28);
+    ctx.fillStyle = p.text;
+    ctx.font = `800 18px ${FONT}`;
+    ctx.fillText(roller.name, x + 50, y + 18);
+    ctx.fillStyle = roll.status === 'done' ? '#58e39a' : roll.status === 'dead' ? p.sawTooth : p.textSoft;
+    ctx.font = `600 12px ${FONT}`;
+    ctx.fillText(status, x + 50, y + 35);
     ctx.restore();
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
 
-  /** Vẽ cả màn chơi trong hệ tọa độ thế giới (đã đặt sẵn phép biến đổi camera). */
-  private drawScene(match: RollMatch, now: number): void {
+  /**
+   * Vẽ màn chơi trong hệ tọa độ thế giới (đã đặt sẵn phép biến đổi camera). `world` là sân để vẽ
+   * (bập bênh, đồng hồ), `visible` là những cuộn giấy được thấy, `owner` lọc hiệu ứng khi mỗi người một sân,
+   * `self` là chủ khung (không vẽ thẻ tên của họ).
+   */
+  private drawScene(match: RollMatch, now: number, world: WorldState, visible: Roller[], owner: string | null, self: string | null): void {
     const ctx = this.context;
     const p = this.palette;
     this.drawWall();
@@ -255,13 +313,13 @@ export class RollRenderer {
     ctx.beginPath();
     ctx.roundRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT, 24);
     ctx.clip();
-    const time = match.world.time;
+    const time = world.time;
     const level = match.level;
     for (const water of level.water ?? []) this.drawWater(water.x, water.y, water.w, water.h, now);
     for (const fan of level.fans ?? []) this.drawFan(fan.x, fan.y, fan.w, fan.h, now);
-    this.drawGoal(level.goal.x, level.goal.y, level.goal.w, level.goal.h, now, match.rollers.some((roller) => roller.roll.status === 'done'));
+    this.drawGoal(level.goal.x, level.goal.y, level.goal.w, level.goal.h, now, visible.some((roller) => roller.roll.status === 'done'));
     (level.checkpoints ?? []).forEach((checkpoint, index) => {
-      const reached = match.rollers.find((roller) => roller.roll.checkpoint >= index);
+      const reached = visible.find((roller) => roller.roll.checkpoint >= index);
       this.drawFlag(checkpoint.x, checkpoint.y + ROLL_RADIUS, reached?.color ?? null);
     });
     for (const platform of level.platforms) this.drawPlank(platform.a, platform.b, platform.t ?? 20, platform.bouncy ? p.bouncy : p.platform, platform.bouncy ? '#9ff0c4' : p.platformTop, Boolean(platform.bouncy));
@@ -271,7 +329,7 @@ export class RollRenderer {
       this.drawMoverArrows(mover.a, mover.b, mover.move, ox, oy);
     }
     (level.seesaws ?? []).forEach((seesaw, index) => {
-      const [a, b] = seesawEnds(seesaw, match.world.seesaws[index]!);
+      const [a, b] = seesawEnds(seesaw, world.seesaws[index]!);
       ctx.fillStyle = p.platform;
       ctx.beginPath();
       ctx.moveTo(seesaw.x, seesaw.y);
@@ -291,11 +349,13 @@ export class RollRenderer {
       this.drawSaw(sx, sy, saw.r, now);
     }
 
-    match.rollers.forEach((roller) => this.drawRoller(match, roller));
+    visible.forEach((roller) => this.drawRoller(match, roller));
     ctx.restore();
-    this.drawParticles(now);
-    this.drawFloaters(now);
-    match.rollers.forEach((roller) => this.drawTag(roller));
+    this.drawParticles(now, owner);
+    this.drawFloaters(now, owner);
+    visible.forEach((roller) => {
+      if (roller.key !== self) this.drawTag(roller);
+    });
   }
 
   dispose(): void {
@@ -663,9 +723,10 @@ export class RollRenderer {
     ctx.textBaseline = 'alphabetic';
   }
 
-  private drawParticles(now: number): void {
+  private drawParticles(now: number, owner: string | null): void {
     const ctx = this.context;
     for (const particle of this.particles) {
+      if (owner && particle.owner !== owner) continue;
       const age = (now - particle.born) / 1000;
       const x = particle.x + particle.vx * age;
       const y = particle.y + particle.vy * age + 0.5 * particle.gravity * age * age;
@@ -680,10 +741,11 @@ export class RollRenderer {
     ctx.globalAlpha = 1;
   }
 
-  private drawFloaters(now: number): void {
+  private drawFloaters(now: number, owner: string | null): void {
     const ctx = this.context;
     ctx.textAlign = 'center';
     for (const floater of this.floaters) {
+      if (owner && floater.owner !== owner) continue;
       const age = (now - floater.born) / 1100;
       ctx.globalAlpha = Math.max(0, 1 - age * age);
       ctx.font = `800 ${Math.round(34 * (age < 0.1 ? 0.7 + age * 3 : 1))}px ${FONT}`;
@@ -697,17 +759,17 @@ export class RollRenderer {
     ctx.globalAlpha = 1;
   }
 
-  private floater(x: number, y: number, text: string, color: string, now: number): void {
-    this.floaters.push({ x: Math.max(80, Math.min(WORLD_WIDTH - 80, x)), y: Math.max(60, y), text, color, born: now });
+  private floater(x: number, y: number, text: string, color: string, now: number, owner: string | null = null): void {
+    this.floaters.push({ x: Math.max(80, Math.min(WORLD_WIDTH - 80, x)), y: Math.max(60, y), text, color, born: now, owner });
   }
 
-  private burst(x: number, y: number, count: number, colors: string[], speed: number, now: number, life: number): void {
+  private burst(x: number, y: number, count: number, colors: string[], speed: number, now: number, life: number, owner: string | null = null): void {
     for (let index = 0; index < count; index += 1) {
       const angle = Math.random() * Math.PI * 2;
       const velocity = speed * (0.3 + Math.random() * 0.7);
       this.particles.push({
         x, y, vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity - speed * 0.4, spin: (Math.random() - 0.5) * 18,
-        born: now, life: life * (0.6 + Math.random() * 0.4), color: colors[index % colors.length]!, size: 6 + Math.random() * 8, gravity: 900,
+        born: now, life: life * (0.6 + Math.random() * 0.4), color: colors[index % colors.length]!, size: 6 + Math.random() * 8, gravity: 900, owner,
       });
     }
   }

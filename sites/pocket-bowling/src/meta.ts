@@ -3,7 +3,7 @@ import type { SiteMeta } from '@pocket/party-kit';
 /** Thông tin game này cho trang kho game, và giới hạn số người chơi mà chính game dùng. */
 export const meta: SiteMeta = {
   id: 'bowling',
-  title: 'Pocket Bowling',
+  title: 'Bowling',
   eyebrow: '3D ARCADE',
   description: 'Bowling 3D với vật lý chân thực, nhiều góc camera. Mở trên TV, cả nhóm quét QR và dùng điện thoại làm tay cầm.',
   tags: ['Quét QR là chơi', 'Điện thoại làm tay cầm'],

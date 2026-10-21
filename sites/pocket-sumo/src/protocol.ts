@@ -1,6 +1,6 @@
 import { clamp, finite, validSeq, type CommandParser } from '@pocket/party-kit';
 
-/** Lệnh riêng của Pocket Sumo: húc (hoặc thổi khi đã là hồn ma) theo hướng x/y; 0,0 là theo hướng mặt. */
+/** Lệnh riêng của Sumo: húc (hoặc thổi khi đã là hồn ma) theo hướng x/y; 0,0 là theo hướng mặt. */
 export type SumoCommand = { type: 'dash'; seq: string; x: number; y: number };
 
 export const parseSumoCommand: CommandParser<SumoCommand> = (data) => {

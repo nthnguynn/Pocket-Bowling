@@ -83,11 +83,6 @@ export class ArcadeHub {
       </header>
 
       <section class="hub-library hub-library--compact" aria-labelledby="library-title">
-        <ol class="hub-steps" aria-label="Cách chơi cùng nhau">
-          <li><b>1</b><span><strong>Mở game trên TV hoặc laptop</strong><small>Màn hình lớn là sân chung</small></span></li>
-          <li><b>2</b><span><strong>Mọi người quét mã QR</strong><small>Không cài app, không cần tài khoản</small></span></li>
-          <li><b>3</b><span><strong>Cùng chơi trên một màn hình</strong><small>Mỗi điện thoại là một người chơi</small></span></li>
-        </ol>
         <div class="hub-section-heading"><div><span>KHO GAME</span><h1 id="library-title">Chọn game để bắt đầu</h1></div><p>${availableGames.length} game đang có</p></div>
         <div class="hub-game-grid">
           ${availableGames.map((game) => this.gameCard(game)).join('')}

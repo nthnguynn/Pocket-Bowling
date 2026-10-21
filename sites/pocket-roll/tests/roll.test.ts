@@ -275,3 +275,52 @@ describe('lệnh qua mạng', () => {
     expect(parseRollCommand({ type: 'dash', seq: 'd1' })).toBeNull();
   });
 });
+
+describe('chế độ hiển thị: mỗi người một sân', () => {
+  function playing(level: number, separate: boolean) {
+    const match = new RollMatch(players(2), { level });
+    match.setSeparate(separate);
+    for (let t = 0; t < COUNTDOWN_SECONDS + 0.05; t += DT) match.step(DT);
+    return match;
+  }
+
+  it('hai cuộn giấy không đẩy nhau khi mỗi người một sân, còn sân chung thì có', () => {
+    const distance = (match: RollMatch) => {
+      const [a, b] = match.rollers;
+      return Math.hypot(a!.roll.x - b!.roll.x, a!.roll.y - b!.roll.y);
+    };
+    const shared = playing(0, false);
+    const separate = playing(0, true);
+    for (const match of [shared, separate]) {
+      match.rollers[1]!.roll.x += 6;
+      for (let i = 0; i < 20; i += 1) match.step(DT);
+    }
+    expect(distance(shared)).toBeGreaterThanOrEqual(ROLL_RADIUS * 2 - 1);
+    expect(distance(separate)).toBeLessThan(ROLL_RADIUS);
+  });
+
+  it('mỗi người có bập bênh riêng: đứng hai đầu thì mỗi sân nghiêng một phía', () => {
+    const seesaw = LEVELS[2]!.seesaws![0]!;
+    const place = (match: RollMatch) => {
+      const [left, right] = match.rollers;
+      Object.assign(right!.roll, { x: seesaw.x + seesaw.length * 0.35, y: seesaw.y - 60, vx: 0, vy: 0 });
+      Object.assign(left!.roll, { x: seesaw.x - seesaw.length * 0.35, y: seesaw.y - 60, vx: 0, vy: 0 });
+      for (let t = 0; t < 1.2; t += DT) match.step(DT);
+    };
+    const separate = playing(2, true);
+    place(separate);
+    const [left, right] = separate.rollers;
+    expect(separate.worldFor(right!).seesaws[0]!.angle).toBeGreaterThan(0.05);
+    expect(separate.worldFor(left!).seesaws[0]!.angle).toBeLessThan(-0.05);
+    // Sân chung: hai người đứng hai đầu thì gần như cân nhau.
+    const shared = playing(2, false);
+    place(shared);
+    expect(Math.abs(shared.world.seesaws[0]!.angle)).toBeLessThan(Math.abs(separate.worldFor(right!).seesaws[0]!.angle));
+  });
+
+  it('đồng hồ của các sân riêng khớp với sân chung (cưa, bục trôi cùng nhịp)', () => {
+    const match = playing(0, true);
+    for (let i = 0; i < 100; i += 1) match.step(DT);
+    for (const roller of match.rollers) expect(match.worldFor(roller).time).toBeCloseTo(match.world.time, 6);
+  });
+});

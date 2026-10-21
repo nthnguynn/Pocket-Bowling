@@ -459,7 +459,7 @@ export class DesktopApp {
         <section class="game-stage" data-game-stage aria-label="Sân bowling 3D"></section>
         <div class="vignette" aria-hidden="true"></div>
         <header class="topbar">
-          <div class="brand-lockup"><div class="brand-ball"><i></i><i></i><i></i></div><div><strong>POCKET</strong><span>BOWLING</span></div></div>
+          <div class="brand-lockup"><div class="brand-ball"><i></i><i></i><i></i></div><div><strong>BOWLING</strong><span>3D ARCADE</span></div></div>
           <div class="game-readout"><span data-player-name>Bạn</span><strong data-status>Chỉnh hướng, lực và độ xoáy</strong><small data-frame-label>Frame 1 · 10 chai còn lại</small></div>
           <div class="top-actions">
             <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
@@ -523,7 +523,7 @@ export class DesktopApp {
           eyebrow: 'SÂN 01 · ARCADE',
           localTitle: 'Chơi trên máy này',
           localCopy: 'Dùng bàn phím, chuột hoặc một điện thoại làm tay cầm chung cho mọi người.',
-          localHint: 'Giữ <kbd>Space</kbd> để lấy lực, thả để ném',
+          localHint: '<span class="key-hint">Giữ <kbd>Space</kbd> để lấy lực, thả để ném</span>',
           players: meta.players,
         })}
 

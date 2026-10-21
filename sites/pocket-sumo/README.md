@@ -1,4 +1,4 @@
-# Pocket Sumo
+# Sumo
 
 Đấu sumo: cả nhóm cùng lúc húc nhau rơi khỏi đài, 1–8 người (`src/meta.ts`). Chỉ cần cảm ứng, không cần HTTPS.
 

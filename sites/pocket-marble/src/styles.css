@@ -1,11 +1,11 @@
-/* Pocket Marble: TV */
+/* Marble: TV */
 .marble-shell { background: #130814; }
 .race-stage { position: absolute; inset: 0; }
 .race-canvas { display: block; }
 .brand-marble { position: relative; width: 38px; height: 38px; flex: none; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #ffffff, #7fe7ff 22%, #4cc9ff 48%, #1d4f7a 100%); box-shadow: 0 0 22px rgba(76,201,255,.35); }
 .brand-marble::after { content: ''; position: absolute; inset: 9px 4px; border-top: 3px solid rgba(255,255,255,.55); border-radius: 50%; transform: rotate(-18deg); }
 .marble-shell .game-readout strong { font-variant-numeric: tabular-nums; }
-/* Pocket Marble: điện thoại */
+/* Marble: điện thoại */
 .marble-phone[data-stage='offline'] .phone-play, .marble-phone[data-stage='local'] .phone-play { display: none; }
 .tray { margin: 6px 0 12px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .tray-board { position: relative; height: 112px; border: 2px solid color-mix(in srgb, var(--player-color) 55%, transparent); border-radius: 26px; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18)), repeating-linear-gradient(90deg, rgba(180,120,70,.32) 0 14px, rgba(150,95,55,.32) 14px 16px); box-shadow: inset 0 10px 24px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.28); overflow: hidden; transition: border-color .2s, box-shadow .2s; }
@@ -26,3 +26,11 @@
 :root[data-theme='light'] .tray small { color: #74586a; }
 :root[data-theme='light'] .tilt-meter { background: rgba(113,47,86,.12); }
 @keyframes tray-jump { 40% { transform: translate(-50%, -50%) rotate(var(--roll)) scale(1.28); box-shadow: 0 26px 26px rgba(0,0,0,.28); } }
+
+/* Chữ nổi trên khay khi có sự kiện (TV gửi tức thì cùng với rung). */
+.tray-toast { position: absolute; left: 50%; top: 50%; z-index: 2; padding: 6px 14px; border-radius: 999px; color: #1a0a14; background: var(--player-color); font: 800 16px var(--font-ui); white-space: nowrap; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(.8); }
+.tray-toast[data-kind='fall'], .tray-toast[data-kind='drop'], .tray-toast[data-kind='out'], .tray-toast[data-kind='bump'] { background: #ffb36b; }
+.tray-toast[data-kind='gem'] { background: #7fe7ff; }
+.tray-toast[data-kind='hint'] { background: rgba(255,255,255,.92); font-size: 13px; }
+.tray-toast.is-active { animation: tray-toast .9s ease-out both; }
+@keyframes tray-toast { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.7); } 15%, 70% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -110%) scale(.95); } }

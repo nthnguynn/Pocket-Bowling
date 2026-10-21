@@ -1,6 +1,6 @@
 # Pocket Arcade
 
-Kho game party trên web: **Pocket Roll**, **Pocket Sumo**, **Pocket Bowling** và **Pocket Marble**. Cách chơi chung của cả kho:
+Kho game party trên web: **Roll**, **Sumo**, **Bowling** và **Marble**. Cách chơi chung của cả kho:
 
 1. Mở game trên TV hoặc laptop (màn hình chính).
 2. Mọi người quét mã QR bằng điện thoại — không cài app, không cần tài khoản.
@@ -13,10 +13,10 @@ Kho game party trên web: **Pocket Roll**, **Pocket Sumo**, **Pocket Bowling** v
 ```text
 packages/party-kit/   phần dùng chung: phòng party, WebRTC, sảnh chờ, tay cầm, theme, CSS chung, server signaling
 sites/pocket-arcade/  trang kho game (cổng 5173), chỉ đọc src/meta.ts của các game
-sites/pocket-bowling/ Pocket Bowling (cổng 5174)
-sites/pocket-marble/  Pocket Marble  (cổng 5175)
-sites/pocket-sumo/    Pocket Sumo    (cổng 5176)
-sites/pocket-roll/    Pocket Roll    (cổng 5177)
+sites/pocket-bowling/ Bowling (cổng 5174)
+sites/pocket-marble/  Marble  (cổng 5175)
+sites/pocket-sumo/    Sumo    (cổng 5176)
+sites/pocket-roll/    Roll    (cổng 5177)
 infra/, docker-compose.yml, .env.example   hạ tầng TURN và cấu hình dùng chung
 ```
 
@@ -89,10 +89,10 @@ Mỗi game tự đặt giới hạn trong trường `players` của `src/meta.ts
 
 | Game | Party (mỗi điện thoại một người) | Chơi trên máy này |
 | --- | --- | --- |
-| Pocket Roll | 1–8 | 1 hoặc 2 người chung bàn phím |
-| Pocket Sumo | 1–8 | 1, 2 hoặc 3 người chung bàn phím |
-| Pocket Marble | 1–8 | 1, 2 hoặc 3 người chung bàn phím |
-| Pocket Bowling | 1–6 | 1 hoặc 2 người |
+| Roll | 1–8 | 1 hoặc 2 người chung bàn phím |
+| Sumo | 1–8 | 1, 2 hoặc 3 người chung bàn phím |
+| Marble | 1–8 | 1, 2 hoặc 3 người chung bàn phím |
+| Bowling | 1–6 | 1 hoặc 2 người |
 
 - `max` quyết định số ghế trong sảnh (`PartyRoom`), số hiển thị `0/N` trên TV/điện thoại và thẻ "1–N người" ở kho game.
 - `local` là các nút ở mục "Chơi trên máy này". Bàn phím chung: P1 mũi tên, P2 `WASD`, P3 `IJKL` (Marble: `J`/`L` lái, `I` nhảy; Sumo: `O` húc).

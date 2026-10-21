@@ -43,8 +43,9 @@ export class PhoneConnection<View = unknown, Event = unknown, Command extends Ga
   }
 
   /** `icon` là HTML tin cậy của logo game (mỗi site một logo). */
-  static headerHtml(subtitle: string, icon: string): string {
-    return `<header class="phone-header"><div class="brand-lockup small">${icon}<div><strong>POCKET</strong><span>${subtitle}</span></div></div><div class="phone-header-actions"><button class="theme-toggle theme-toggle--compact" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span class="sr-only" data-theme-label>Chế độ sáng</span></button><div class="phone-status"><i data-controller-dot></i><span data-controller-status>chưa kết nối</span></div></div></header>
+  /** `title` là tên game hiện ở logo, dòng dưới ghi "TAY CẦM". */
+  static headerHtml(title: string, icon: string): string {
+    return `<header class="phone-header"><div class="brand-lockup small">${icon}<div><strong>${title}</strong><span>TAY CẦM</span></div></div><div class="phone-header-actions"><button class="theme-toggle theme-toggle--compact" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span class="sr-only" data-theme-label>Chế độ sáng</span></button><div class="phone-status"><i data-controller-dot></i><span data-controller-status>chưa kết nối</span></div></div></header>
       <section class="join-card" data-join-card><label><span>MÃ PHÒNG</span><input data-room-input inputmode="text" maxlength="11" placeholder="ABCDE-FGHJK" autocomplete="off"></label><button data-connect>KẾT NỐI</button></section>
       ${PhoneSeat.html()}`;
   }

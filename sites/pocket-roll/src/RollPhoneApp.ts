@@ -18,7 +18,7 @@ const TOASTS: Partial<Record<BuzzKind, string>> = {
 };
 
 /**
- * Tay cầm Pocket Roll: điện thoại là tấm bìa. Nghiêng để lăn cuộn giấy trên TV, hất máy lên để nhảy.
+ * Tay cầm Roll: điện thoại là tấm bìa. Nghiêng để lăn cuộn giấy trên TV, hất máy lên để nhảy.
  * Máy có cảm biến thì lần chạm đầu bật cảm biến; không có (hoặc trang không HTTPS) thì dùng nút ◀ NHẢY ▶.
  */
 export class RollPhoneApp {

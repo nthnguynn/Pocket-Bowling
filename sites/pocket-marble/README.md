@@ -1,4 +1,4 @@
-# Pocket Marble
+# Marble
 
 Đua bi, mỗi người một làn, 1–8 người (`src/meta.ts`).
 
@@ -8,7 +8,7 @@ Chạy (ở gốc repo): `npm run dev:marble` rồi mở `http://localhost:5175`
 
 Lấy cảm hứng từ [Give Me Toilet Paper!](https://www.techbang.com/posts/112777-tpgs-2024-give-me-toilet-paper) (Switch, 2023: nhét Joy-Con vào cuộn giấy đặt trên tấm bìa, nghiêng tấm bìa để lái cuộn giấy), nhưng dùng viên bi:
 
-- **Điện thoại là tấm khay**: nghiêng trái/phải để lái viên bi trên TV, chạm khay để nhảy qua hố. Không có cảm biến (hoặc trang không chạy HTTPS) thì dùng nút ◀ NHẢY ▶.
+- **Điện thoại là tấm khay**: nghiêng trái/phải để lái viên bi trên TV, **hất điện thoại lên để nhảy** qua hố (máy không gửi dữ liệu gia tốc thì chạm khay). Mỗi sự kiện — nhặt ngọc, va khối, tăng tốc, rơi hố, rơi bi khỏi khay, về đích, bị loại — rung điện thoại ngay lập tức, mỗi loại một kiểu; bi trong khay sắp lăn ra mép cũng rung báo trước. Không có cảm biến (hoặc trang không chạy HTTPS) thì dùng nút ◀ NHẢY ▶.
 - **Giữ bi trên khay**: tương ứng với việc giữ cuộn giấy thật khỏi lăn khỏi tấm bìa. Nghiêng vừa phải thì bi trong khay nằm yên; giữ nghiêng hết cỡ khoảng 2 giây thì bi lăn ra mép và rơi, viên bi trên TV bị choáng 1,2 giây. TV tính khay theo độ nghiêng nhận được; điện thoại chỉ hiển thị bản dự đoán.
 - **Đường đua**: mỗi người một làn, cùng một đường sinh theo seed (công bằng): khối chắn, hành lang hẹp, khối trượt, hố (có khe hoặc chắn ngang phải nhảy), tấm tăng tốc và ngọc.
 - **3 mạng**: rơi hố hoặc làm rơi bi khỏi khay mất 1 mạng (rơi hố thì được đặt lại trước hố). Hết mạng là bị loại: làn tối lại, xếp sau mọi người còn đua. Đâm khối chắn chỉ bị bật lại, không mất mạng.

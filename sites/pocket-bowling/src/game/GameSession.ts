@@ -151,7 +151,10 @@ export class GameSession {
   finishTransition(): void {
     if (this.phase !== 'TURN_TRANSITION') return;
     this.phase = 'AIMING';
-    this.message = `${this.players[this.activePlayer]?.name ?? 'Người chơi'} — đến lượt bạn`;
+    // Chơi một mình thì không cần báo "đến lượt ai".
+    this.message = this.players.length === 1
+      ? 'Chỉnh hướng, lực và độ xoáy'
+      : `${this.players[this.activePlayer]?.name ?? 'Người chơi'} — đến lượt bạn`;
   }
 
   snapshot(): GameSnapshot {

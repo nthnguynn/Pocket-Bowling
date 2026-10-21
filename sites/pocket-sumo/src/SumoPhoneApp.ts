@@ -30,7 +30,7 @@ const TOASTS: Partial<Record<BuzzKind, string>> = {
 };
 
 /**
- * Tay cầm Pocket Sumo: cả màn hình là vùng điều khiển, chỉ cần cảm ứng (không cần cảm biến hay HTTPS).
+ * Tay cầm Sumo: cả màn hình là vùng điều khiển, chỉ cần cảm ứng (không cần cảm biến hay HTTPS).
  * Ở sảnh chờ đã điều khiển được nhân vật trên sàn khởi động; vào trận thì giao diện thu gọn chỉ còn vùng chạm.
  */
 export class SumoPhoneApp {

@@ -1,4 +1,4 @@
-/* Pocket Sumo: TV */
+/* Sumo: TV */
 .sumo-shell { background: #130814; }
 .brand-sumo { position: relative; width: 38px; height: 38px; flex: none; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #ffd8eb, #ff5caf 40%, #8b1d55); box-shadow: 0 0 22px rgba(255,92,175,.35); }
 .brand-sumo::before { content: ''; position: absolute; top: -5px; left: 50%; width: 12px; height: 9px; transform: translateX(-50%); border-radius: 50%; background: #2a1420; }

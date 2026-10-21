@@ -51,7 +51,7 @@ export class SumoApp {
   private feed: Array<{ html: string; at: number }> = [];
 
   constructor(private readonly root: HTMLElement) {
-    document.title = 'Pocket Sumo';
+    document.title = 'Sumo';
     this.root.innerHTML = this.template();
     this.lobby = new HostLobby(this.root);
     this.renderer = new SumoRenderer(this.query('[data-play-stage]'));
@@ -478,7 +478,7 @@ export class SumoApp {
     return `<main class="desktop-shell sumo-shell">
       <section class="play-stage" data-play-stage aria-label="Sàn đấu sumo"></section>
       <header class="topbar">
-        <div class="brand-lockup"><div class="brand-sumo" aria-hidden="true"><i></i></div><div><strong>POCKET</strong><span>SUMO</span></div></div>
+        <div class="brand-lockup"><div class="brand-sumo" aria-hidden="true"><i></i></div><div><strong>SUMO</strong><span>PARTY BRAWL</span></div></div>
         <div class="game-readout"><span>ĐẨY NHAU RA KHỎI SÀN</span><strong data-readout>Sàn khởi động</strong><small data-readout-hint>Kéo để chạy · vuốt để húc</small></div>
         <div class="top-actions">
           <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
@@ -501,7 +501,7 @@ export class SumoApp {
         eyebrow: 'ĐẤU SUMO · PARTY',
         localTitle: 'Chơi trên máy này',
         localCopy: 'Một mình đấu với hai bot, hoặc tối đa ba người chung bàn phím.',
-        localHint: 'P1 <kbd>←↑↓→</kbd> · <kbd>Enter</kbd> húc &nbsp;·&nbsp; P2 <kbd>WASD</kbd> · <kbd>F</kbd> &nbsp;·&nbsp; P3 <kbd>IJKL</kbd> · <kbd>O</kbd>',
+        localHint: '<span class="key-hint"><b>P1</b><kbd>←↑↓→</kbd> đi <kbd>Enter</kbd> húc</span><span class="key-hint"><b>P2</b><kbd>WASD</kbd> đi <kbd>F</kbd> húc</span><span class="key-hint"><b>P3</b><kbd>IJKL</kbd> đi <kbd>O</kbd> húc</span>',
         players: meta.players,
       })}
 

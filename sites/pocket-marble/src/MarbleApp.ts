@@ -4,7 +4,7 @@ import {
 } from '@pocket/party-kit';
 import { MarbleAudio } from './MarbleAudio';
 import { meta } from './meta';
-import { parseMarbleCommand, type MarbleCommand } from './protocol';
+import { MARBLE_BUZZ_KINDS, parseMarbleCommand, type MarbleCommand } from './protocol';
 import { MarbleRace, type RacerSetup } from './MarbleRace';
 import { formatSeconds, MarbleRenderer } from './MarbleRenderer';
 
@@ -42,7 +42,7 @@ export class MarbleApp {
   private readonly lastTiltAt = new Map<number, number>();
 
   constructor(private readonly root: HTMLElement) {
-    document.title = 'Pocket Marble';
+    document.title = 'Marble';
     this.root.innerHTML = this.template();
     this.lobby = new HostLobby(this.root);
     this.renderer = new MarbleRenderer(this.query('[data-race-stage]'));
@@ -160,6 +160,7 @@ export class MarbleApp {
       race.advance(elapsed).forEach((event) => {
         this.audio.event(event.type);
         this.renderer.effect(race, event, now);
+        this.buzz(event.racer, event.type);
       });
       this.tickCountdown(race);
       this.renderReadout(race);
@@ -294,6 +295,13 @@ export class MarbleApp {
     this.broadcast();
   }
 
+  /** Rung + chữ nổi tức thì trên điện thoại của người gây ra sự kiện (chỉ khi chơi bằng điện thoại). */
+  private buzz(racer: number, type: string): void {
+    if (this.party.stage !== 'party' || !MARBLE_BUZZ_KINDS.has(type)) return;
+    const peer = this.party.ownerOf(racer)?.peer;
+    if (peer) this.network.send(peer, { type: 'event', event: { kind: type } });
+  }
+
   private renderParty(): void {
     this.lobby.renderParty(this.party.state());
   }
@@ -324,8 +332,8 @@ export class MarbleApp {
     return `<main class="desktop-shell marble-shell">
       <section class="race-stage" data-race-stage aria-label="Đường đua bi"></section>
       <header class="topbar">
-        <div class="brand-lockup"><div class="brand-marble" aria-hidden="true"></div><div><strong>POCKET</strong><span>MARBLE</span></div></div>
-        <div class="game-readout"><span>ĐƯỜNG ĐUA BI</span><strong data-readout>Sảnh chờ</strong><small>Nghiêng để lái · chạm để nhảy · 3 mạng, hết mạng là bị loại</small></div>
+        <div class="brand-lockup"><div class="brand-marble" aria-hidden="true"></div><div><strong>MARBLE</strong><span>PARTY RACE</span></div></div>
+        <div class="game-readout"><span>ĐƯỜNG ĐUA BI</span><strong data-readout>Sảnh chờ</strong><small>Nghiêng để lái · hất máy để nhảy · 3 mạng, hết mạng là bị loại</small></div>
         <div class="top-actions">
           <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
           <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
@@ -342,7 +350,7 @@ export class MarbleApp {
         eyebrow: 'ĐƯỜNG ĐUA BI · PARTY',
         localTitle: 'Chơi trên máy này',
         localCopy: 'Một mình đua cùng hai bot, hoặc tối đa ba người chung bàn phím.',
-        localHint: 'P1 <kbd>←</kbd> <kbd>→</kbd> lái · <kbd>↑</kbd> nhảy &nbsp;·&nbsp; P2 <kbd>A</kbd> <kbd>D</kbd> · <kbd>W</kbd> &nbsp;·&nbsp; P3 <kbd>J</kbd> <kbd>L</kbd> · <kbd>I</kbd>',
+        localHint: '<span class="key-hint"><b>P1</b><kbd>←</kbd><kbd>→</kbd> lái <kbd>↑</kbd> nhảy</span><span class="key-hint"><b>P2</b><kbd>A</kbd><kbd>D</kbd> lái <kbd>W</kbd> nhảy</span><span class="key-hint"><b>P3</b><kbd>J</kbd><kbd>L</kbd> lái <kbd>I</kbd> nhảy</span>',
         players: meta.players,
       })}
 

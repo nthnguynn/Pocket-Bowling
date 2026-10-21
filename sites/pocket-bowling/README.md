@@ -1,4 +1,4 @@
-# Pocket Bowling
+# Bowling
 
 Bowling 3D (Three.js + vật lý Rapier). Chơi theo lượt, 1–6 người; số người đặt trong `src/meta.ts`.
 
