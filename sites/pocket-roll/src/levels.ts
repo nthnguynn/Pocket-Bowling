@@ -21,7 +21,7 @@ export const LEVELS: Level[] = [
   {
     id: 2,
     name: 'Lưỡi cưa đầu tiên',
-    hint: 'Chạm màn hình để nhảy qua lưỡi cưa. Chạm cưa là giấy rách!',
+    hint: 'Hất điện thoại lên để nhảy qua lưỡi cưa. Chạm cưa là giấy rách!',
     spawn: [90, 250],
     goal: { x: 0, y: 650, w: 230, h: 160 },
     platforms: [

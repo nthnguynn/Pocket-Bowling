@@ -1,4 +1,4 @@
-import { escapeHtml, initials, PhoneConnection, sequence, type PartyState, type Seat } from '@pocket/party-kit';
+import { escapeHtml, initials, PhoneConnection, sequence, uiIcon, type PartyState, type Seat } from '@pocket/party-kit';
 import type { BuzzKind, SumoBuzz, SumoCommand } from './protocol';
 import { JoystickPad } from './JoystickPad';
 import { DASH_COOLDOWN, PUFF_COOLDOWN } from './physics';
@@ -85,7 +85,7 @@ export class SumoPhoneApp {
       else void document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
     });
     document.addEventListener('fullscreenchange', () => {
-      fullscreen.textContent = document.fullscreenElement ? '⤡ THOÁT' : '⤢ TOÀN MÀN HÌNH';
+      fullscreen.innerHTML = document.fullscreenElement ? `${uiIcon('collapse')} THOÁT` : `${uiIcon('expand')} TOÀN MÀN HÌNH`;
     });
   }
 
@@ -286,7 +286,7 @@ export class SumoPhoneApp {
 
       <section class="phone-status-card">
         <div><span data-sumo-kicker>ĐẤU SUMO</span><strong data-sumo-title>—</strong><p data-sumo-message>Kết nối với màn hình chính để bắt đầu.</p></div>
-        <div class="phone-status-card-side"><span class="player-pips" data-player-pips></span><button class="sumo-fullscreen is-hidden" data-fullscreen type="button">⤢ TOÀN MÀN HÌNH</button></div>
+        <div class="phone-status-card-side"><span class="player-pips" data-player-pips></span><button class="sumo-fullscreen is-hidden" data-fullscreen type="button">${uiIcon('expand')} TOÀN MÀN HÌNH</button></div>
       </section>
 
       <section class="sumo-pad" data-pad aria-label="Vùng điều khiển: kéo để chạy, vuốt để húc">

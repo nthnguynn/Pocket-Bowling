@@ -1,6 +1,6 @@
 import {
   arcadeUrl, bindThemeToggle, defaultPlayers, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, PLAYER_COLORS,
-  WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand,
+  uiIcon, WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand,
 } from '@pocket/party-kit';
 import { meta } from './meta';
 import { parseSumoCommand, type BuzzKind, type SumoBuzz, type SumoCommand } from './protocol';
@@ -481,10 +481,10 @@ export class SumoApp {
         <div class="brand-lockup"><div class="brand-sumo" aria-hidden="true"><i></i></div><div><strong>POCKET</strong><span>SUMO</span></div></div>
         <div class="game-readout"><span>ĐẨY NHAU RA KHỎI SÀN</span><strong data-readout>Sàn khởi động</strong><small data-readout-hint>Kéo để chạy · vuốt để húc</small></div>
         <div class="top-actions">
-          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
-          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
+          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
+          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
           <span class="connection-pill" data-connection-pill>đang kết nối</span>
-          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
+          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">${uiIcon('players')}<span>Người chơi</span></button>
         </div>
       </header>
 

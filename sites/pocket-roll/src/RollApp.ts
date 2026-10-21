@@ -1,6 +1,6 @@
 import {
   arcadeUrl, bindThemeToggle, defaultPlayers, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, PLAYER_COLORS,
-  WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand,
+  uiIcon, WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand,
 } from '@pocket/party-kit';
 import { LEVELS } from './levels';
 import { meta } from './meta';
@@ -280,7 +280,7 @@ export class RollApp {
     const hint = this.query('[data-readout-hint]');
     readout.textContent = active.practice ? `Lăn thử · Màn ${view.levelIndex + 1}` : `Màn ${view.levelIndex + 1}/${view.levelCount} · ${view.levelName}`;
     hint.textContent = active.practice
-      ? 'Quét QR là có cuộn giấy · nghiêng để lăn · chạm để nhảy'
+      ? 'Quét QR là có cuộn giấy · nghiêng để lăn · hất máy để nhảy'
       : view.graceLeft !== null ? `Còn ${Math.ceil(view.graceLeft)} giây để giao giấy!` : view.hint;
 
     const roster = active.practice ? '' : this.rosterHtml(active);
@@ -305,7 +305,7 @@ export class RollApp {
       return `<li class="player-card is-${roll.status === 'done' ? 'done' : roll.status === 'dead' ? 'falling' : 'alive'} ${member && !member.connected ? 'is-offline' : ''}" style="--player-color: ${roller.color}">
         <span class="player-avatar">${escapeHtml(initials(roller.name))}</span>
         <span class="player-copy"><strong>${escapeHtml(roller.name)}</strong><small>${status}</small></span>
-        <span class="player-score"><b class="roll-points">${roller.points} đ</b><small>✕ ${roll.deaths}</small></span>
+        <span class="player-score"><b class="roll-points">${roller.points} đ</b><small>× ${roll.deaths}</small></span>
       </li>`;
     }).join('');
   }
@@ -468,12 +468,12 @@ export class RollApp {
       <section class="play-stage" data-roll-stage aria-label="Màn chơi cuộn giấy"></section>
       <header class="topbar">
         <div class="brand-lockup"><div class="brand-roll" aria-hidden="true"><i></i></div><div><strong>POCKET</strong><span>ROLL</span></div></div>
-        <div class="game-readout"><span>CHO XIN CUỘN GIẤY!</span><strong data-readout>Lăn thử</strong><small data-readout-hint>Nghiêng để lăn · chạm để nhảy</small></div>
+        <div class="game-readout"><span>CHO XIN CUỘN GIẤY!</span><strong data-readout>Lăn thử</strong><small data-readout-hint>Nghiêng để lăn · hất máy để nhảy</small></div>
         <div class="top-actions">
-          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
-          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
+          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
+          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
           <span class="connection-pill" data-connection-pill>đang kết nối</span>
-          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
+          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">${uiIcon('players')}<span>Người chơi</span></button>
         </div>
       </header>
 
@@ -502,7 +502,7 @@ export class RollApp {
           <ol class="final-ranking final-ranking--race" data-level-ranking></ol>
           <p class="level-next" data-level-next></p>
           <div class="end-actions">
-            <button class="primary-button" data-level-action="next">MÀN TIẾP ▶</button>
+            <button class="primary-button" data-level-action="next">MÀN TIẾP →</button>
             <button class="primary-button" data-level-action="again">CHƠI LẠI TỪ ĐẦU</button>
             <button class="ghost-button" data-level-action="retry">CHƠI LẠI MÀN</button>
             <button class="ghost-button" data-open-lobby>VỀ SẢNH CHỜ</button>

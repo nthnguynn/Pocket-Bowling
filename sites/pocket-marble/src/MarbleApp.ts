@@ -1,6 +1,6 @@
 import {
   arcadeUrl, bindThemeToggle, defaultPlayers, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, PLAYER_COLORS,
-  WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand, type PlayerSetup,
+  uiIcon, WebRTCHost, type CommandResult, type NetworkStats, type PartyCommand, type PlayerSetup,
 } from '@pocket/party-kit';
 import { MarbleAudio } from './MarbleAudio';
 import { meta } from './meta';
@@ -225,7 +225,7 @@ export class MarbleApp {
     this.query('[data-final-ranking]').innerHTML = ranked.map((index, position) => {
       const racer = view.racers[index]!;
       const detail = racer.finishTime !== null
-        ? `${formatSeconds(racer.finishTime)} − ${racer.gems} ◆`
+        ? `${formatSeconds(racer.finishTime)} − ${racer.gems} ♦`
         : `${racer.status === 'out' ? 'bị loại' : 'chưa về'} · ${Math.round(racer.progress * 100)}%`;
       return `<li style="--player-color: ${racer.color}">
         <b>${position + 1}</b><i>${escapeHtml(initials(racer.name))}</i><span>${escapeHtml(racer.name)}<small>${detail}</small></span><strong>${racer.score === null ? '—' : formatSeconds(racer.score)}</strong>
@@ -327,10 +327,10 @@ export class MarbleApp {
         <div class="brand-lockup"><div class="brand-marble" aria-hidden="true"></div><div><strong>POCKET</strong><span>MARBLE</span></div></div>
         <div class="game-readout"><span>ĐƯỜNG ĐUA BI</span><strong data-readout>Sảnh chờ</strong><small>Nghiêng để lái · chạm để nhảy · 3 mạng, hết mạng là bị loại</small></div>
         <div class="top-actions">
-          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
-          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
+          <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
+          <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
           <span class="connection-pill" data-connection-pill>đang kết nối</span>
-          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
+          <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">${uiIcon('players')}<span>Người chơi</span></button>
         </div>
       </header>
 
@@ -347,7 +347,7 @@ export class MarbleApp {
       })}
 
       <section class="modal-overlay is-hidden" data-end-overlay>
-        <div class="mode-card glass"><span class="eyebrow">KẾT QUẢ · MỖI ◆ TRỪ 0,5 GIÂY</span><h1 data-end-title>Hoàn thành!</h1>
+        <div class="mode-card glass"><span class="eyebrow">KẾT QUẢ · MỖI ♦ TRỪ 0,5 GIÂY</span><h1 data-end-title>Hoàn thành!</h1>
           <ol class="final-ranking final-ranking--race" data-final-ranking></ol>
           <div class="end-actions"><button class="primary-button" data-restart>ĐUA LẠI</button><button class="ghost-button" data-open-lobby>VỀ SẢNH CHỜ</button></div>
         </div>

@@ -1,5 +1,5 @@
 import {
-  arcadeUrl, bindThemeToggle, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, WebRTCHost,
+  arcadeUrl, bindThemeToggle, escapeHtml, getTheme, HostLobby, initials, onThemeChange, PartyRoom, uiIcon, WebRTCHost,
   type CommandResult, type NetworkStats, type PartyCommand,
 } from '@pocket/party-kit';
 import type { CameraMode } from '../game/BowlingRenderer';
@@ -462,11 +462,11 @@ export class DesktopApp {
           <div class="brand-lockup"><div class="brand-ball"><i></i><i></i><i></i></div><div><strong>POCKET</strong><span>BOWLING</span></div></div>
           <div class="game-readout"><span data-player-name>Bạn</span><strong data-status>Chỉnh hướng, lực và độ xoáy</strong><small data-frame-label>Frame 1 · 10 chai còn lại</small></div>
           <div class="top-actions">
-            <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">⌂ <span>Kho game</span></a>
-            <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
+            <a class="icon-button hub-home-button" href="${arcadeUrl()}" aria-label="Về kho game">${uiIcon('home')}<span>Kho game</span></a>
+            <button class="icon-button theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
             <span class="connection-pill" data-connection-pill>đang kết nối</span>
-            <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">▣ <span>Người chơi</span></button>
-            <button class="icon-button" data-diag-toggle aria-label="Mở chẩn đoán">⌁ <span>Mạng</span></button>
+            <button class="icon-button" data-phone-toggle aria-label="Người chơi và mã QR">${uiIcon('players')}<span>Người chơi</span></button>
+            <button class="icon-button" data-diag-toggle aria-label="Mở chẩn đoán">${uiIcon('network')}<span>Mạng</span></button>
           </div>
         </header>
 
@@ -481,7 +481,7 @@ export class DesktopApp {
           <button data-camera-mode="chase" aria-pressed="false" title="Theo sát bóng"><span>→</span><b>Theo bóng</b></button>
           <button data-camera-mode="side" aria-pressed="false" title="Nhìn ngang sân"><span>↔</span><b>Ngang sân</b></button>
           <button data-camera-mode="pins" aria-pressed="false" title="Nhìn từ sau dàn chai"><span>●</span><b>Sau chai</b></button>
-          <button data-camera-mode="top" aria-pressed="false" title="Nhìn từ trên cao"><span>⌃</span><b>Trên cao</b></button>
+          <button data-camera-mode="top" aria-pressed="false" title="Nhìn từ trên cao"><span>↑</span><b>Trên cao</b></button>
         </nav>
 
         <section class="control-dock glass" aria-label="Điều khiển ném">

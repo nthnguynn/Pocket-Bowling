@@ -77,7 +77,7 @@ export class ArcadeHub {
           <span><strong>POCKET</strong><b>ARCADE</b></span>
         </a>
         <div class="hub-header-actions">
-          <button class="theme-toggle hub-theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span data-theme-label>Chế độ sáng</span></button>
+          <button class="theme-toggle hub-theme-toggle" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span data-theme-label>Chế độ sáng</span></button>
           <div class="hub-library-count"><i></i>${availableGames.length} GAME ĐANG CÓ</div>
         </div>
       </header>

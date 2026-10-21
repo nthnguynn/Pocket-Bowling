@@ -1,4 +1,4 @@
-import { escapeHtml, initials, PhoneConnection, sequence, TiltController, type PartyState, type Seat } from '@pocket/party-kit';
+import { escapeHtml, initials, PhoneConnection, sequence, TiltController, uiIcon, type PartyState, type Seat } from '@pocket/party-kit';
 import { LIVES, type RaceView } from './MarbleRace';
 import { formatSeconds } from './MarbleRenderer';
 import { stepTray, type TrayState } from './physics';
@@ -184,11 +184,11 @@ export class MarblePhoneApp {
       title.textContent = 'Hết mạng!';
       message.textContent = view.phase === 'finished' ? 'Cuộc đua đã kết thúc.' : 'Xem những người còn lại về đích trên TV…';
     } else if (me.status === 'finished' || view.phase === 'finished') {
-      kicker.textContent = me.finishTime === null ? 'HẾT GIỜ' : `VỀ ĐÍCH · ${formatSeconds(me.finishTime)} − ${me.gems} ◆`;
+      kicker.textContent = me.finishTime === null ? 'HẾT GIỜ' : `VỀ ĐÍCH · ${formatSeconds(me.finishTime)} − ${me.gems} ♦`;
       title.textContent = `Hạng ${me.rank}/${count}`;
       message.textContent = view.phase === 'finished' ? 'Cuộc đua đã kết thúc.' : 'Chờ những người còn lại về đích…';
     } else {
-      kicker.textContent = `${'♥'.repeat(me.lives)}${'♡'.repeat(Math.max(0, LIVES - me.lives))} · ◆ ${me.gems} · ${Math.round(me.progress * 100)}% ĐƯỜNG`;
+      kicker.textContent = `♥ ${me.lives}/${LIVES} · ♦ ${me.gems} · ${Math.round(me.progress * 100)}% ĐƯỜNG`;
       title.textContent = `Hạng ${me.rank}/${count}`;
       message.textContent = me.status === 'falling'
         ? 'Rơi hố rồi — đang đặt lại bi…'
@@ -202,9 +202,9 @@ export class MarblePhoneApp {
     this.query('[data-standings]').classList.toggle('is-hidden', !visible);
     if (!view || !visible) return;
     const rows = view.racers.map((racer, index) => ({ racer, index })).sort((a, b) => a.racer.rank - b.racer.rank);
-    this.query('[data-standings-title]').textContent = view.phase === 'finished' ? 'Kết quả · mỗi ◆ trừ 0,5 giây' : 'Bảng xếp hạng';
+    this.query('[data-standings-title]').textContent = view.phase === 'finished' ? 'Kết quả · mỗi ♦ trừ 0,5 giây' : 'Bảng xếp hạng';
     this.query('[data-standings-list]').innerHTML = rows.map(({ racer, index }) => `<li class="${index === seat.player ? 'is-me' : ''}" style="--player-color: ${racer.color}">
-      <b>${racer.rank}</b><i>${escapeHtml(initials(racer.name))}</i><span>${escapeHtml(racer.name)}${racer.bot ? ' · BOT' : ''}</span><small>◆${racer.gems}</small><strong>${racer.score !== null ? formatSeconds(racer.score) : racer.status === 'out' ? 'LOẠI' : `${Math.round(racer.progress * 100)}%`}</strong>
+      <b>${racer.rank}</b><i>${escapeHtml(initials(racer.name))}</i><span>${escapeHtml(racer.name)}${racer.bot ? ' · BOT' : ''}</span><small>♦${racer.gems}</small><strong>${racer.score !== null ? formatSeconds(racer.score) : racer.status === 'out' ? 'LOẠI' : `${Math.round(racer.progress * 100)}%`}</strong>
     </li>`).join('');
     this.query('[data-phone-restart]').classList.toggle('is-hidden', !(view.phase === 'finished' && seat.leader));
   }
@@ -234,9 +234,9 @@ export class MarblePhoneApp {
           <div class="motion-actions"><button data-tilt-calibrate>ĐẶT LÀM MẶT PHẲNG</button></div>
         </section>
         <section class="steer-pad" data-button-panel>
-          <button data-steer-left aria-label="Lái trái">◀</button>
+          <button data-steer-left aria-label="Lái trái">${uiIcon('left')}</button>
           <button class="steer-jump" data-jump>NHẢY</button>
-          <button data-steer-right aria-label="Lái phải">▶</button>
+          <button data-steer-right aria-label="Lái phải">${uiIcon('right')}</button>
         </section>
         <p class="safety-copy" data-tilt-status-hint>Giữ chắc điện thoại. Nghiêng vừa phải là đủ lái — nghiêng hết cỡ quá lâu sẽ làm rơi bi khỏi khay.</p>
       </div>

@@ -11,5 +11,7 @@ export { PartyRoom, type JoinResult } from './party/PartyRoom';
 export { HostLobby, controllerUrl, type LobbyCopy } from './ui/HostLobby';
 export { PhoneConnection, sequence, tabClientId } from './ui/PhoneConnection';
 export { PhoneSeat } from './ui/PhoneSeat';
+export { uiIcon, type UiIconName } from './ui/icons';
 export { bindThemeToggle, getTheme, initTheme, onThemeChange, setTheme, type ThemeMode } from './ui/theme';
 export { TiltController } from './controller/TiltController';
+export { FlickDetector } from './controller/FlickDetector';

@@ -38,7 +38,7 @@ const LIGHT: Palette = {
 const TOP_MARGIN = 92;
 const BOTTOM_MARGIN = 18;
 const LANE_GAP = 14;
-const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
+const FONT = '"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 
 interface Floater { lane: number; x: number; y: number; text: string; color: string; born: number }
 interface Spark { lane: number; x: number; y: number; vx: number; vy: number; born: number; life: number; color: string }
@@ -86,7 +86,7 @@ export class MarbleRenderer {
         this.sparks.push({ lane: event.racer, x, y, vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity, born: now, life: 500 + Math.random() * 400, color });
       }
     };
-    if (event.type === 'gem') { floater('+◆', this.palette.gem); burst(8, this.palette.gem, 40); }
+    if (event.type === 'gem') { floater('+♦', this.palette.gem); burst(8, this.palette.gem, 40); }
     // Mạng cuối thì sự kiện 'out' tự hiện chữ BỊ LOẠI, không cần báo −♥.
     if (event.type === 'fall') floater(racer.lives > 0 ? 'RƠI HỐ! −♥' : 'RƠI HỐ!', this.palette.warning);
     if (event.type === 'drop') { floater(racer.lives > 0 ? 'RƠI BI KHỎI KHAY! −♥' : 'RƠI BI KHỎI KHAY!', this.palette.warning); this.shakes[event.racer] = 0.4; }
@@ -416,7 +416,7 @@ export class MarbleRenderer {
     ctx.fillRect(nameX - 10 + (compact ? 4 : 0), nameY - 8, compact ? 3 : 4, 16);
     ctx.fillStyle = p.text;
     ctx.font = `700 ${compact ? 14 : 17}px ${FONT}`;
-    const gemsLabel = `◆ ${marble.collected.size}`;
+    const gemsLabel = `♦ ${marble.collected.size}`;
     ctx.save();
     ctx.beginPath();
     ctx.rect(nameX, top + pad, compact ? width - pad * 2 - 14 : width - pad * 2 - 100, hudHeight);
@@ -499,7 +499,7 @@ export class MarbleRenderer {
       ctx.fillStyle = p.text;
       ctx.font = `700 17px ${FONT}`;
       const score = race.score(racer);
-      ctx.fillText(`${formatSeconds(score ?? 0)} (−${marble.collected.size} ◆)`, left + width / 2, top + height * 0.36 + 56);
+      ctx.fillText(`${formatSeconds(score ?? 0)} (−${marble.collected.size} ♦)`, left + width / 2, top + height * 0.36 + 56);
     }
     ctx.textBaseline = 'alphabetic';
   }

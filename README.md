@@ -107,6 +107,11 @@ Mỗi game tự đặt giới hạn trong trường `players` của `src/meta.ts
 - Mất kết nối giữa ván thì ghế được giữ và TV ghi "mất kết nối"; người vào giữa ván sẽ chơi từ ván sau.
 - Signaling cho tối đa `MAX_CONTROLLERS` (mặc định 10) điện thoại mỗi phòng: 8 người chơi của game đông nhất + chỗ cho máy xem/kết nối lại.
 
+## Giao diện chung
+
+- Font **Be Vietnam Pro** (thiết kế cho tiếng Việt) được đóng gói qua `@fontsource/be-vietnam-pro` và phục vụ cùng ứng dụng, không tải từ Google Fonts; dự phòng là font hệ thống có đủ dấu tiếng Việt. Dùng biến CSS `--font-ui`; chữ vẽ trên canvas dùng cùng font.
+- Icon giao diện là SVG trong `packages/party-kit/src/ui/icons.ts` (`uiIcon('home')`…), không dùng ký hiệu Unicode hiếm (⌂ ▣ ⤢ ☾…) vì nhiều TV/điện thoại hiện thành ô vuông. Ký hiệu trong chữ chỉ dùng loại có sẵn ở mọi font: ← ↑ → ↓ ↔ ● ♥ ♦ ×.
+
 ## Kiến trúc
 
 ```text

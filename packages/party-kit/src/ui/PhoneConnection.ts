@@ -44,7 +44,7 @@ export class PhoneConnection<View = unknown, Event = unknown, Command extends Ga
 
   /** `icon` là HTML tin cậy của logo game (mỗi site một logo). */
   static headerHtml(subtitle: string, icon: string): string {
-    return `<header class="phone-header"><div class="brand-lockup small">${icon}<div><strong>POCKET</strong><span>${subtitle}</span></div></div><div class="phone-header-actions"><button class="theme-toggle theme-toggle--compact" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true">☀</span><span class="sr-only" data-theme-label>Chế độ sáng</span></button><div class="phone-status"><i data-controller-dot></i><span data-controller-status>chưa kết nối</span></div></div></header>
+    return `<header class="phone-header"><div class="brand-lockup small">${icon}<div><strong>POCKET</strong><span>${subtitle}</span></div></div><div class="phone-header-actions"><button class="theme-toggle theme-toggle--compact" data-theme-toggle type="button"><span data-theme-icon aria-hidden="true"></span><span class="sr-only" data-theme-label>Chế độ sáng</span></button><div class="phone-status"><i data-controller-dot></i><span data-controller-status>chưa kết nối</span></div></div></header>
       <section class="join-card" data-join-card><label><span>MÃ PHÒNG</span><input data-room-input inputmode="text" maxlength="11" placeholder="ABCDE-FGHJK" autocomplete="off"></label><button data-connect>KẾT NỐI</button></section>
       ${PhoneSeat.html()}`;
   }
@@ -57,8 +57,11 @@ export class PhoneConnection<View = unknown, Event = unknown, Command extends Ga
       this.network.sendCommand({ type: 'lobby', action: 'start', seq: sequence('start') });
     };
     this.network.onState = (state, detail) => {
-      this.query('[data-controller-status]').textContent = detail ? `${state} · ${detail}` : state;
       this.connected = this.network.isOpen;
+      // Đã nối thì chỉ cần chữ ngắn, chi tiết kỹ thuật để trong tooltip; có lỗi thì hiện đủ để người chơi biết vì sao.
+      const status = this.query('[data-controller-status]');
+      status.textContent = detail && !this.connected ? `${state} · ${detail}` : state;
+      status.title = detail ?? '';
       if (this.connected) this.everConnected = true;
       this.query('[data-controller-dot]').classList.toggle('is-online', this.connected);
       this.shell.classList.toggle('is-connected', this.connected);

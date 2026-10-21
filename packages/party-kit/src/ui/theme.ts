@@ -1,3 +1,5 @@
+import { uiIcon } from './icons';
+
 export type ThemeMode = 'light' | 'dark';
 
 const STORAGE_KEY = 'pocket-arcade-theme';
@@ -19,7 +21,7 @@ const refreshControls = (): void => {
     button.setAttribute('aria-pressed', String(theme === 'light'));
     const icon = button.querySelector<HTMLElement>('[data-theme-icon]');
     const label = button.querySelector<HTMLElement>('[data-theme-label]');
-    if (icon) icon.textContent = theme === 'dark' ? '☀' : '☾';
+    if (icon) icon.innerHTML = uiIcon(theme === 'dark' ? 'sun' : 'moon');
     if (label) label.textContent = theme === 'dark' ? 'Chế độ sáng' : 'Chế độ tối';
   });
 };

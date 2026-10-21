@@ -18,7 +18,7 @@
 .tray-marble { --tray: 0; --roll: 0deg; position: absolute; top: 50%; left: calc(50% + var(--tray) * (50% - 36px)); width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #ffffff, var(--player-color) 30%, color-mix(in srgb, var(--player-color) 45%, #000) 100%); box-shadow: 0 10px 18px rgba(0,0,0,.4); transform: translate(-50%, -50%) rotate(var(--roll)); }
 .tray-marble::after { content: ''; position: absolute; inset: 18px 4px; border-top: 4px solid rgba(255,255,255,.6); border-radius: 50%; }
 .tray.is-jumping .tray-marble { animation: tray-jump .45s cubic-bezier(.2,.8,.3,1); }
-.tray small { display: block; margin-top: 8px; color: #9a8494; font: 700 9px 'Barlow Condensed'; letter-spacing: .14em; text-align: center; }
+.tray small { display: block; margin-top: 8px; color: #9a8494; font: 700 11px var(--font-ui); letter-spacing: .06em; text-align: center; }
 .tilt-meter { --tilt: 0; position: relative; height: 6px; margin: 0 18% 16px; border-radius: 6px; background: rgba(255,255,255,.08); }
 .tilt-meter i { position: absolute; top: -3px; left: calc(50% + var(--tilt) * 50%); width: 12px; height: 12px; border-radius: 50%; background: var(--player-color); transform: translateX(-50%); }
 .marble-phone .safety-copy { margin-top: 14px; }

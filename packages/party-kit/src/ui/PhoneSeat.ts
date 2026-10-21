@@ -25,7 +25,7 @@ export class PhoneSeat {
   static html(): string {
     return `<section class="seat-card" aria-label="Người chơi của bạn">
         <i class="seat-avatar" data-seat-avatar aria-hidden="true">?</i>
-        <label class="seat-name"><span>TÊN HIỂN THỊ TRÊN MÀN HÌNH</span><input data-name-input maxlength="16" placeholder="Nhập tên của bạn" autocomplete="nickname" enterkeyhint="done"></label>
+        <label class="seat-name"><span>TÊN CỦA BẠN</span><input data-name-input maxlength="16" placeholder="Nhập tên của bạn" autocomplete="nickname" enterkeyhint="done"></label>
         <span class="seat-badge" data-seat-badge>—</span>
       </section>
 

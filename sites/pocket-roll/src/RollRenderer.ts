@@ -44,9 +44,13 @@ const DARK: Palette = {
 
 const TOP_MARGIN = 92;
 const BOTTOM_MARGIN = 104;
-const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
+const FONT = '"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+/** Chia đôi màn hình: mỗi nửa thấy khoảng ngần này đơn vị bề ngang của màn chơi (cả màn rộng WORLD_WIDTH). */
+const FOLLOW_WIDTH = 900;
+const SPLIT_GAP = 14;
 
 interface Floater { x: number; y: number; text: string; color: string; born: number }
+interface Camera { x: number; y: number }
 interface Particle { x: number; y: number; vx: number; vy: number; spin: number; born: number; life: number; color: string; size: number; gravity: number }
 
 export class RollRenderer {
@@ -63,6 +67,8 @@ export class RollRenderer {
   private particles: Particle[] = [];
   /** Phần bên trái bị sảnh chờ che; màn được căn giữa phần còn lại. */
   private inset = 0;
+  /** Camera của từng người khi chia đôi màn hình, theo key người chơi. */
+  private cameras = new Map<string, Camera>();
 
   constructor(private readonly container: HTMLElement) {
     this.canvas.className = 'roll-canvas';
@@ -86,6 +92,7 @@ export class RollRenderer {
     this.floaters = [];
     this.particles = [];
     this.shake = 0;
+    this.cameras.clear();
   }
 
   effect(match: RollMatch, entry: MatchEvent, now: number): void {
@@ -129,11 +136,119 @@ export class RollRenderer {
     ctx.fillStyle = p.backdrop;
     ctx.fillRect(0, 0, this.width, this.height);
 
+    // Đúng hai người chơi thật (sảnh chờ đã đóng): chia đôi màn hình, mỗi nửa một camera bám theo một người.
+    const humans = this.inset === 0 ? match.rollers.filter((roller) => !roller.bot) : [];
+    if (humans.length === 2) {
+      this.renderSplit(match, humans, now, elapsed);
+      return;
+    }
     ctx.save();
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake * 16, (Math.random() - 0.5) * this.shake * 16);
     ctx.translate(this.originX, this.originY);
     ctx.scale(this.scale, this.scale);
+    this.drawScene(match, now);
+    ctx.restore();
+  }
 
+  private renderSplit(match: RollMatch, followed: Roller[], now: number, elapsed: number): void {
+    const ctx = this.context;
+    const top = TOP_MARGIN;
+    const height = Math.max(200, this.height - TOP_MARGIN - BOTTOM_MARGIN);
+    const width = Math.max(200, (this.width - 40 - SPLIT_GAP) / 2);
+    // Luôn thấy khoảng FOLLOW_WIDTH bề ngang; màn hình quá thấp thì thu nhỏ để vẫn thấy đủ trên dưới.
+    const scale = Math.max(width / WORLD_WIDTH, Math.min(width / FOLLOW_WIDTH, height / 640));
+    const visibleW = width / scale;
+    const visibleH = height / scale;
+    const center = (value: number, visible: number, world: number) =>
+      (visible >= world ? world / 2 : Math.max(visible / 2, Math.min(world - visible / 2, value)));
+
+    followed.forEach((roller, index) => {
+      const left = 20 + index * (width + SPLIT_GAP);
+      const target = { x: center(roller.roll.x, visibleW, WORLD_WIDTH), y: center(roller.roll.y, visibleH, WORLD_HEIGHT) };
+      const previous = this.cameras.get(roller.key);
+      // Bám mượt; sống lại ở cờ xa thì nhảy thẳng tới.
+      const camera = !previous || Math.hypot(previous.x - target.x, previous.y - target.y) > 500
+        ? target
+        : { x: previous.x + (target.x - previous.x) * Math.min(1, elapsed * 6), y: previous.y + (target.y - previous.y) * Math.min(1, elapsed * 6) };
+      this.cameras.set(roller.key, camera);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(left, top, width, height, 22);
+      ctx.clip();
+      if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake * 12, (Math.random() - 0.5) * this.shake * 12);
+      ctx.translate(left + width / 2, top + height / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-camera.x, -camera.y);
+      this.drawScene(match, now);
+      ctx.restore();
+
+      followed.forEach((other) => {
+        if (other !== roller) this.drawOffscreenArrow(other, camera, scale, left, top, width, height);
+      });
+      this.drawViewFrame(roller, left, top, width, height);
+    });
+  }
+
+  /** Người kia ra khỏi khung hình của mình: mũi tên màu của họ ở mép, chỉ về phía họ. */
+  private drawOffscreenArrow(other: Roller, camera: Camera, scale: number, left: number, top: number, width: number, height: number): void {
+    const roll = other.roll;
+    if (roll.status === 'dead' || roll.status === 'done') return;
+    const sx = left + width / 2 + (roll.x - camera.x) * scale;
+    const sy = top + height / 2 + (roll.y - camera.y) * scale;
+    const margin = 26;
+    if (sx > left + margin && sx < left + width - margin && sy > top + margin && sy < top + height - margin) return;
+    const x = Math.max(left + margin, Math.min(left + width - margin, sx));
+    const y = Math.max(top + margin, Math.min(top + height - margin, sy));
+    const angle = Math.atan2(sy - y, sx - x);
+    const ctx = this.context;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = other.color;
+    ctx.strokeStyle = 'rgba(20,4,16,0.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(14, 0);
+    ctx.lineTo(-10, -12);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(-10, 12);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawViewFrame(roller: Roller, left: number, top: number, width: number, height: number): void {
+    const ctx = this.context;
+    ctx.strokeStyle = roller.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(left + 1.5, top + 1.5, width - 3, height - 3, 21);
+    ctx.stroke();
+    ctx.font = `800 20px ${FONT}`;
+    const label = roller.name.toUpperCase();
+    const labelWidth = Math.min(width - 32, ctx.measureText(label).width + 28);
+    ctx.fillStyle = roller.color;
+    ctx.beginPath();
+    ctx.roundRect(left + 14, top + 12, labelWidth, 30, 15);
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left + 14, top + 12, labelWidth - 12, 30);
+    ctx.clip();
+    ctx.fillStyle = '#1a0a14';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, left + 28, top + 28);
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** Vẽ cả màn chơi trong hệ tọa độ thế giới (đã đặt sẵn phép biến đổi camera). */
+  private drawScene(match: RollMatch, now: number): void {
+    const ctx = this.context;
+    const p = this.palette;
     this.drawWall();
     // Mọi thứ của màn (cưa dưới đáy, nước…) chỉ vẽ trong khung; chữ nổi và tên vẽ sau, được tràn ra ngoài.
     ctx.save();
@@ -181,7 +296,6 @@ export class RollRenderer {
     this.drawParticles(now);
     this.drawFloaters(now);
     match.rollers.forEach((roller) => this.drawTag(roller));
-    ctx.restore();
   }
 
   dispose(): void {

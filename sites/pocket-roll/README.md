@@ -6,7 +6,8 @@ Chạy (ở gốc repo): `npm run dev:roll` rồi mở `http://localhost:5177` t
 
 ## Cách chơi
 
-- **Điều khiển**: cầm điện thoại như cầm tấm bìa, nghiêng trái/phải để lăn; chạm màn hình để nhảy. Lần chạm đầu bật cảm biến nghiêng (iPhone hỏi quyền). Không có cảm biến hoặc trang không chạy HTTPS thì dùng nút ◀ NHẢY ▶. Trên điện thoại có thước thủy: bọt nằm giữa là đang cân.
+- **Điều khiển**: cầm điện thoại như cầm tấm bìa, nghiêng trái/phải để lăn; **hất điện thoại lên để nhảy** (như giật tấm bìa lên). Lần chạm đầu bật cảm biến (iPhone hỏi quyền). Máy không gửi dữ liệu gia tốc thì chạm màn hình để nhảy. Không có cảm biến hoặc trang không chạy HTTPS thì dùng nút ◀ NHẢY ▶. Trên điện thoại có thước thủy: bọt nằm giữa là đang cân.
+- **Hai người chơi**: màn hình TV chia đôi, mỗi nửa có camera bám theo cuộn giấy của một người (viền và nhãn theo màu người chơi); người kia ra khỏi khung thì có mũi tên màu ở mép chỉ về phía họ. Từ 3 người trở lên dùng khung chung.
 - **Mỗi màn gọn một khung hình**, mọi người lăn cùng lúc trên cùng một màn. Chạm cưa là rách giấy, rơi xuống nước hay rơi khỏi màn cũng chết; chết thì sống lại ở cờ gần nhất (hoặc chỗ xuất phát).
 - **Điểm**: giao giấy thứ nhất 5 điểm, thứ hai 3, thứ ba 2, còn lại 1. Người đầu tiên giao xong kích hoạt 25 giây cho những người còn lại; mỗi màn tối đa 150 giây.
 - **Qua màn**: có người qua thì tự sang màn sau sau 9 giây; chưa ai qua thì chơi lại màn đó. Chủ phòng bấm **Màn tiếp** / **Chơi lại màn** ngay trên điện thoại. Hết 10 màn thì xếp theo tổng điểm.

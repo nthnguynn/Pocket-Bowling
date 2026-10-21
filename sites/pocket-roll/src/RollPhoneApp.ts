@@ -1,4 +1,4 @@
-import { escapeHtml, initials, PhoneConnection, sequence, TiltController, type PartyState, type Seat } from '@pocket/party-kit';
+import { escapeHtml, FlickDetector, initials, PhoneConnection, sequence, TiltController, uiIcon, type PartyState, type Seat } from '@pocket/party-kit';
 import type { BuzzKind, RollBuzz, RollCommand } from './protocol';
 import type { RollerView, RollView } from './RollMatch';
 
@@ -18,12 +18,13 @@ const TOASTS: Partial<Record<BuzzKind, string>> = {
 };
 
 /**
- * Tay cầm Pocket Roll: điện thoại là tấm bìa. Nghiêng để lăn cuộn giấy trên TV, chạm để nhảy.
- * Máy có cảm biến thì lần chạm đầu bật nghiêng máy; không có (hoặc trang không HTTPS) thì dùng nút ◀ ▶.
+ * Tay cầm Pocket Roll: điện thoại là tấm bìa. Nghiêng để lăn cuộn giấy trên TV, hất máy lên để nhảy.
+ * Máy có cảm biến thì lần chạm đầu bật cảm biến; không có (hoặc trang không HTTPS) thì dùng nút ◀ NHẢY ▶.
  */
 export class RollPhoneApp {
   private readonly link: PhoneConnection<RollView, RollBuzz, RollCommand>;
   private readonly tilt = new TiltController();
+  private readonly flick = new FlickDetector();
   private steer: 'tilt' | 'buttons' = TiltController.supported() ? 'tilt' : 'buttons';
   private held = { left: false, right: false };
   private buttonTilt = 0;
@@ -39,7 +40,10 @@ export class RollPhoneApp {
     document.body.classList.add('immersive-controller');
     this.root.innerHTML = this.template();
     this.link = new PhoneConnection(this.query('[data-phone-shell]'));
-    this.link.onDispose = () => this.tilt.disable();
+    this.link.onDispose = () => {
+      this.tilt.disable();
+      this.flick.stop();
+    };
     this.bindNetwork();
     this.bindUi();
     this.link.start();
@@ -65,6 +69,10 @@ export class RollPhoneApp {
     });
     this.tilt.onStatus = (message) => { this.query('[data-tilt-status]').textContent = message; };
     this.query<HTMLButtonElement>('[data-tilt-calibrate]').addEventListener('click', () => this.tilt.calibrate());
+    this.flick.onFlick = () => {
+      this.touchUntil = performance.now() + 400;
+      this.jump();
+    };
     this.root.querySelectorAll<HTMLButtonElement>('[data-phone-action]').forEach((button) => {
       button.addEventListener('click', () => this.link.sendLobby(button.dataset.phoneAction as 'next' | 'restart'));
     });
@@ -97,6 +105,11 @@ export class RollPhoneApp {
         void this.setSteer('tilt');
         return;
       }
+      // Chế độ nghiêng máy nhảy bằng cú hất; chạm chỉ còn là dự phòng khi máy không gửi dữ liệu gia tốc.
+      if (this.steer === 'tilt' && this.flick.receiving) {
+        this.toast('HẤT MÁY LÊN ĐỂ NHẢY', 'hint');
+        return;
+      }
       this.jump();
     });
     pad.addEventListener('contextmenu', (event) => event.preventDefault());
@@ -120,9 +133,15 @@ export class RollPhoneApp {
   private async setSteer(mode: 'tilt' | 'buttons'): Promise<void> {
     if (mode === 'tilt' && !this.tilt.enabled) {
       void this.link.requestWakeLock();
-      if (!await this.tilt.enable()) mode = 'buttons';
+      // Xin cả hai quyền trong cùng một lần chạm: iPhone chỉ hỏi quyền khi có thao tác của người dùng.
+      const [tiltReady, motionReady] = await Promise.all([this.tilt.enable(), FlickDetector.requestPermission()]);
+      if (!tiltReady) mode = 'buttons';
+      else if (motionReady) this.flick.start();
     }
-    if (mode === 'buttons') this.tilt.disable();
+    if (mode === 'buttons') {
+      this.tilt.disable();
+      this.flick.stop();
+    }
     this.steer = mode;
     this.applySteer();
   }
@@ -132,9 +151,11 @@ export class RollPhoneApp {
     this.root.querySelectorAll('[data-steer]').forEach((element) => element.classList.toggle('is-active', (element as HTMLElement).dataset.steer === mode));
     this.query('[data-tilt-panel]').classList.toggle('is-hidden', mode !== 'tilt');
     this.query('[data-button-panel]').classList.toggle('is-hidden', mode !== 'buttons');
-    this.query('[data-pad-label]').textContent = mode === 'tilt' && !this.tilt.enabled
-      ? 'CHẠM ĐỂ BẬT NGHIÊNG MÁY'
-      : 'CHẠM ĐỂ NHẢY';
+    const label = mode === 'tilt' && !this.tilt.enabled
+      ? 'CHẠM ĐỂ BẬT CẢM BIẾN'
+      : mode === 'tilt' && this.flick.active ? 'HẤT MÁY LÊN ĐỂ NHẢY' : 'CHẠM ĐỂ NHẢY';
+    this.query('[data-pad-label]').textContent = label;
+    this.query('[data-roll-pad]').setAttribute('aria-label', label);
     if (!TiltController.supported()) {
       this.query('[data-tilt-status]').textContent = window.isSecureContext
         ? 'Máy không có cảm biến nghiêng — dùng nút bấm.'
@@ -197,7 +218,7 @@ export class RollPhoneApp {
     } else if (party.stage === 'lobby') {
       kicker = view ? `LĂN THỬ · MÀN ${view.levelIndex + 1} · ${view.levelName.toUpperCase()}` : 'LĂN THỬ';
       title = me ? 'Nghiêng thử đi!' : 'Đang vào…';
-      message = 'Cuộn giấy màu của bạn đang ở trên TV. Nghiêng máy như cầm tấm bìa để lăn.';
+      message = 'Cuộn giấy màu của bạn đang ở trên TV. Nghiêng máy như cầm tấm bìa để lăn, hất lên để nhảy.';
     } else if (!view || !me) {
       title = seat.member ? 'Trận sau' : 'Đang xem';
       message = 'Bạn vào khi trận đã bắt đầu — sẽ chơi từ trận kế tiếp.';
@@ -245,7 +266,7 @@ export class RollPhoneApp {
       const roller = view.rollers.find((entry) => entry.key === key)!;
       const score = final ? `${roller.points} đ` : roller.finishTime !== null ? `${roller.finishTime.toFixed(1)}s` : '—';
       return `<li class="${key === seat.member ? 'is-me' : ''}" style="--player-color: ${roller.color}">
-        <b>${index + 1}</b><i>${escapeHtml(initials(roller.name))}</i><span>${escapeHtml(roller.name)}</span><small>✕${roller.deaths}</small><strong>${score}</strong>
+        <b>${index + 1}</b><i>${escapeHtml(initials(roller.name))}</i><span>${escapeHtml(roller.name)}</span><small>×${roller.deaths}</small><strong>${score}</strong>
       </li>`;
     }).join('');
     const leader = seat.leader && party.stage === 'party';
@@ -260,9 +281,12 @@ export class RollPhoneApp {
     const pattern = VIBRATION[kind];
     if (pattern !== undefined) vibrate(pattern);
     const toast = TOASTS[kind];
-    if (!toast) return;
+    if (toast) this.toast(toast, kind);
+  }
+
+  private toast(text: string, kind: string): void {
     const element = this.query('[data-pad-toast]');
-    element.textContent = toast;
+    element.textContent = text;
     element.dataset.kind = kind;
     element.classList.remove('is-active');
     void element.offsetWidth;
@@ -284,7 +308,7 @@ export class RollPhoneApp {
       </section>
 
       <section class="roll-play">
-        <div class="roll-pad" data-roll-pad role="button" aria-label="Chạm để nhảy">
+        <div class="roll-pad" data-roll-pad role="button" aria-label="Chạm để bật cảm biến">
           <div class="spirit-level" aria-hidden="true"><i data-level-bubble></i></div>
           <div class="roll-board" data-board aria-hidden="true"><i></i></div>
           <b data-pad-label>CHẠM ĐỂ NHẢY</b>
@@ -292,20 +316,20 @@ export class RollPhoneApp {
         </div>
         <nav class="mode-tabs"><button data-steer="tilt">NGHIÊNG MÁY</button><button data-steer="buttons">NÚT BẤM</button></nav>
         <section class="tilt-panel is-hidden" data-tilt-panel>
-          <p data-tilt-status>Cầm máy ngang như cầm tấm bìa, nghiêng trái/phải để lăn.</p>
+          <p data-tilt-status>Cầm máy ngang như cầm tấm bìa, nghiêng trái/phải để lăn, hất lên để nhảy.</p>
           <div class="motion-actions"><button data-tilt-calibrate>ĐẶT LÀM MẶT PHẲNG</button></div>
         </section>
         <section class="steer-pad" data-button-panel>
-          <button data-steer-left aria-label="Nghiêng trái">◀</button>
+          <button data-steer-left aria-label="Nghiêng trái">${uiIcon('left')}</button>
           <button class="steer-jump" data-jump>NHẢY</button>
-          <button data-steer-right aria-label="Nghiêng phải">▶</button>
+          <button data-steer-right aria-label="Nghiêng phải">${uiIcon('right')}</button>
         </section>
       </section>
 
       <section class="phone-standings is-hidden" data-standings aria-label="Kết quả">
         <div class="phone-section-head"><b data-standings-title>Kết quả</b></div>
         <ol class="standings-list" data-standings-list></ol>
-        <button class="primary-button phone-wide-button is-hidden" data-phone-action="next">MÀN TIẾP ▶</button>
+        <button class="primary-button phone-wide-button is-hidden" data-phone-action="next">MÀN TIẾP →</button>
         <button class="ghost-button phone-wide-button is-hidden" data-phone-action="restart">CHƠI LẠI MÀN</button>
       </section>
       <footer class="phone-feedback" data-feedback>Độ nghiêng gửi 30 lần/giây; lệnh nhảy qua kênh tin cậy.</footer>

@@ -33,7 +33,7 @@ export class PhoneApp {
       if (snapshot) this.renderState(snapshot, party, seat);
     };
     this.network.onAck = (_seq, accepted, reason) => {
-      this.query('[data-feedback]').textContent = accepted ? 'Màn hình chính đã nhận lệnh ✓' : (reason ?? 'Lệnh chưa được nhận');
+      this.query('[data-feedback]').textContent = accepted ? 'Màn hình chính đã nhận lệnh' : (reason ?? 'Lệnh chưa được nhận');
       if (accepted && navigator.vibrate) navigator.vibrate(35);
     };
     this.motion.onStatus = (message) => { this.query('[data-motion-status]').textContent = message; };

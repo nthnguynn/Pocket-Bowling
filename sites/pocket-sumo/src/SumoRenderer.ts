@@ -44,7 +44,7 @@ const LIGHT: Palette = {
 const TILT = 0.56;
 const TOP_MARGIN = 96;
 const BOTTOM_MARGIN = 132;
-const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
+const FONT = '"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 
 interface Floater { x: number; y: number; text: string; color: string; born: number; size: number }
 interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; born: number; life: number; color: string; size: number; kind: 'dust' | 'spark' | 'confetti' }
